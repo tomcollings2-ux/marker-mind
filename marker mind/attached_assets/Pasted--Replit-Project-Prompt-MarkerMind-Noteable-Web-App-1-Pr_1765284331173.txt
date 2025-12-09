@@ -1,0 +1,78 @@
+🚀 Replit Project Prompt: MarkerMind / Noteable Web App
+🎯 1. Project Overview
+Create a feature-rich web application that digitally replicates the experience of using a physical whiteboard with colorful sticky notes and hand-drawn marker elements. The application must be interactive, aesthetically pleasing, and capable of saving/loading board states.
+
+🏷️ 2. Branding & Aesthetic Goals
+App Name: MarkerMind or Noteable.
+
+Core Aesthetic: Whiteboard-styled background (light gray/white canvas). All non-note text and lines must resemble thick, slightly wobbly strokes made by a dry-erase marker.
+
+Sticky Note Visuals: Use a fixed palette (Yellow, Pink, Blue, Green, Orange). Notes must appear slightly 3D (via box-shadow) and apply with a randomized rotation (±5 
+∘
+ ) for a realistic, haphazard look.
+
+Font: Implement a custom font that mimics handwriting or marker text for both sticky notes and drawn elements.
+
+🛠️ 3. Technical Requirements & Stack
+Stack: A full-stack setup is preferred (e.g., React or Vue.js for the frontend, Node.js/Express for a potential API, even if unused initially).
+
+Canvas Implementation: Use SVG or HTML Canvas for the main drawing surface to manage complex elements, drag-and-drop, and line drawing.
+
+Persistence (MVP): Use Browser Local Storage to handle saving and loading the board state via JSON serialization.
+
+📌 4. Core Features to Implement
+Draggable Sticky Notes:
+
+Fully functional drag-and-drop movement.
+
+Editing: Double-click to modify text content.
+
+Customization: Controls for changing color, shape (Square, Rectangle, Circle), and deleting the note.
+
+Basic Drawing Tool: Implement a tool to draw freehand lines and simple, segmented shapes (like tables) that look like marker strokes.
+
+Template Structure: Implement the UI framework for the following two initial presets:
+
+The "Rocket Launch" Roadmap: A 3-section horizontal framework (Fueling, Ignition, Orbit).
+
+Persona Profile Card: A large, structured card with pre-drawn fields (Name, Goals, Frustrations).
+
+💾 5. Data Structure (JSON Schema)
+The entire board state must be saved as a single JSON object in Local Storage, adhering to the following structure:
+
+JSON
+
+{
+  "boardId": "unique_id_string",
+  "boardName": "User-Defined Board Title",
+  "dateLastSaved": "ISO 8601 Date/Time String",
+  "elements": {
+    "stickyNotes": [
+      {
+        "id": "note-xxx",
+        "type": "stickyNote",
+        "text": "Note content goes here.",
+        "x": 350,
+        "y": 120,
+        "color": "yellow",
+        "shape": "rectangle",
+        "rotation": 3.5
+      }
+      // ... other sticky notes
+    ],
+    "drawings": [
+      {
+        "id": "line-yyy",
+        "type": "freehandLine",
+        "color": "black",
+        "thickness": 8,
+        "path": [
+          { "x": 50, "y": 100 }, 
+          { "x": 55, "y": 105 } 
+          // ... array of coordinates
+        ]
+      }
+      // ... other drawing elements
+    ]
+  }
+}

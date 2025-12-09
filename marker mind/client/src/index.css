@@ -1,0 +1,143 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  /* Custom Board Colors */
+  --color-note-yellow: hsl(var(--note-yellow));
+  --color-note-pink: hsl(var(--note-pink));
+  --color-note-blue: hsl(var(--note-blue));
+  --color-note-green: hsl(var(--note-green));
+  --color-note-orange: hsl(var(--note-orange));
+  
+  --font-marker: 'Kalam', cursive;
+  --font-hand: 'Architects Daughter', cursive;
+  --font-display: 'Permanent Marker', cursive;
+  
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+}
+
+:root {
+  /* Whiteboard Aesthetic */
+  --background: 0 0% 98%; /* Very light grey/white */
+  --foreground: 0 0% 10%; /* Almost black ink */
+  
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 10%;
+  
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 10%;
+  
+  --primary: 0 0% 10%; /* Black marker */
+  --primary-foreground: 0 0% 98%;
+  
+  --secondary: 0 0% 90%; /* Light grey eraser marks */
+  --secondary-foreground: 0 0% 10%;
+  
+  --muted: 0 0% 90%;
+  --muted-foreground: 0 0% 40%;
+  
+  --accent: 0 0% 90%;
+  --accent-foreground: 0 0% 10%;
+  
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+
+  --border: 0 0% 80%;
+  --input: 0 0% 90%;
+  --ring: 0 0% 10%;
+  
+  --radius: 0.25rem; /* Slight rounded but mostly sharp like paper */
+
+  /* Sticky Note Colors - Pastel but vibrant enough */
+  --note-yellow: 50 100% 85%;
+  --note-pink: 320 80% 85%;
+  --note-blue: 190 70% 85%;
+  --note-green: 120 60% 85%;
+  --note-orange: 30 100% 85%;
+}
+
+.dark {
+  /* Dark mode whiteboard (Blackboard style?) - Optional, keeping simple for now */
+  --background: 240 10% 10%;
+  --foreground: 0 0% 95%;
+  
+  --card: 240 10% 12%;
+  --card-foreground: 0 0% 95%;
+  
+  --popover: 240 10% 12%;
+  --popover-foreground: 0 0% 95%;
+  
+  --primary: 0 0% 98%; /* White chalk */
+  --primary-foreground: 240 5.9% 10%;
+  
+  --secondary: 240 3.7% 15.9%;
+  --secondary-foreground: 0 0% 98%;
+  
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 240 5% 64.9%;
+  
+  --accent: 240 3.7% 15.9%;
+  --accent-foreground: 0 0% 98%;
+  
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  
+  --border: 240 3.7% 15.9%;
+  --input: 240 3.7% 15.9%;
+  --ring: 240 4.9% 83.9%;
+  
+  /* Slightly darker notes for dark mode */
+  --note-yellow: 50 80% 70%;
+  --note-pink: 320 60% 70%;
+  --note-blue: 190 50% 70%;
+  --note-green: 120 40% 70%;
+  --note-orange: 30 80% 70%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply font-marker antialiased bg-background text-foreground overflow-hidden;
+    background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+}
+
+.marker-shadow {
+  filter: drop-shadow(2px 3px 0px rgba(0,0,0,0.1));
+}
+
+.note-shadow {
+  box-shadow: 2px 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.hand-drawn-border {
+  border: 2px solid currentColor;
+  border-radius: 2px 255px 3px 25px / 255px 5px 225px 2px;
+}
