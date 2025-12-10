@@ -791,7 +791,7 @@ export default function Board() {
                 <img
                   src="/logo.jpg"
                   alt="MarkerMind Logo"
-                  className="w-10 h-10 object-contain rounded-full"
+                  className="h-12 w-auto object-contain bg-white/95 rounded-lg px-1"
                 />
                 <h1 className="text-lg font-semibold truncate max-w-md">
                   {boardData?.board?.boardName || 'Untitled Board'}
