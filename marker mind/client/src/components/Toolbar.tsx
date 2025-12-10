@@ -262,12 +262,9 @@ export function Toolbar({
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </div>
 
-        {/* Center: Logo & Notes & Templates */}
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl font-bold font-marker text-gray-800">MarkerMind</h1>
           <Separator orientation="vertical" className="h-6" />
+
           {/* Quick Notes Dropdown with improved color picker */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -347,7 +344,10 @@ export function Toolbar({
               <TooltipContent>Upload Image</TooltipContent>
             </Tooltip>
           )}
+        </div>
 
+        {/* Right: Templates + Actions */}
+        <div className="flex items-center gap-2">
           {/* Templates Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -376,10 +376,9 @@ export function Toolbar({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
 
-        {/* Right: Actions */}
-        <div className="flex items-center gap-2">
+          <Separator orientation="vertical" className="h-6" />
+
           {hasSelection && onDeleteSelected && (
             <Tooltip>
               <TooltipTrigger asChild>
