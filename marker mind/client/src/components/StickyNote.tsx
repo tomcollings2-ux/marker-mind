@@ -15,6 +15,7 @@ interface StickyNoteProps {
   isSelected?: boolean;
   onSelect?: () => void;
   zoom?: number;
+  isNew?: boolean; // Flag for newly created notes
 }
 
 const colorMap: Record<NoteColor, string> = {
@@ -34,7 +35,7 @@ const fontFamilyMap: Record<string, string> = {
 
 const isCustomColor = (color: string) => color.startsWith('#');
 
-export function StickyNote({ note, onUpdate, onDelete, isSelected, onSelect, zoom = 1 }: StickyNoteProps) {
+export function StickyNote({ note, onUpdate, onDelete, isSelected, onSelect, zoom = 1, isNew = false }: StickyNoteProps) {
   const controls = useDragControls();
   const [isEditing, setIsEditing] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -87,6 +88,7 @@ export function StickyNote({ note, onUpdate, onDelete, isSelected, onSelect, zoo
     setDynamicFontSize(optimal);
   }, [localText, noteWidth, noteHeight, note.fontFamily]);
 
+  // Auto-focus on creation or when entering edit mode
   useEffect(() => {
     if (isEditing && textareaRef.current) {
       textareaRef.current.focus();
@@ -94,7 +96,15 @@ export function StickyNote({ note, onUpdate, onDelete, isSelected, onSelect, zoo
     }
   }, [isEditing]);
 
-  const handleDoubleClick = () => {
+  // Auto-focus and enter edit mode for newly created notes
+  useEffect(() => {
+    if (isNew && isSelected && !isEditing) {
+      setIsEditing(true);
+    }
+  }, [isNew, isSelected, isEditing]);
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent deselection
     setIsEditing(true);
   };
 
@@ -211,7 +221,8 @@ export function StickyNote({ note, onUpdate, onDelete, isSelected, onSelect, zoo
         "absolute flex flex-col p-4 shadow-lg transition-shadow cursor-pointer select-none group",
         !isCustomColor(note.color) && (colorMap[note.color as NoteColor] || 'bg-note-yellow'),
         note.shape === 'circle' ? 'rounded-full aspect-square justify-center items-center text-center' : 'rounded-sm',
-        isSelected ? "shadow-2xl ring-2 ring-primary/50" : "hover:shadow-xl"
+        isSelected ? "shadow-2xl ring-2 ring-primary/50" : "hover:shadow-xl",
+        isEditing && "ring-4 ring-blue-400/60 shadow-blue-200" // Visual editing indicator
       )}
       style={{
         fontFamily: fontFamilyMap[note.fontFamily || 'marker'] || 'var(--font-marker)',

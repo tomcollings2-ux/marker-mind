@@ -71,6 +71,9 @@ export default function Board() {
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
 
+  // Track newly created elements for auto-focus
+  const [newlyCreatedIds, setNewlyCreatedIds] = useState<Set<string>>(new Set());
+
   const [toolSettings, setToolSettings] = useState<ToolSettings>({
     penColor: '#000000',
     penThickness: 3,
@@ -188,7 +191,17 @@ export default function Board() {
     }) : null);
     setHasUnsavedChanges(true);
     setSelectedNoteId(newNote.id);
+    setNewlyCreatedIds(prev => new Set(prev).add(newNote.id)); // Mark as new
     setCurrentTool('cursor');
+
+    // Remove from newly created after a short delay to allow auto-focus
+    setTimeout(() => {
+      setNewlyCreatedIds(prev => {
+        const next = new Set(prev);
+        next.delete(newNote.id);
+        return next;
+      });
+    }, 100);
   };
 
   // Drawing Handlers
@@ -222,7 +235,17 @@ export default function Board() {
     }) : null);
     setHasUnsavedChanges(true);
     setSelectedLabelId(newLabel.id);
+    setNewlyCreatedIds(prev => new Set(prev).add(newLabel.id)); // Mark as new
     setCurrentTool('cursor');
+
+    // Remove from newly created after a short delay
+    setTimeout(() => {
+      setNewlyCreatedIds(prev => {
+        const next = new Set(prev);
+        next.delete(newLabel.id);
+        return next;
+      });
+    }, 100);
   };
 
   const handleUpdateTextLabel = (id: string, updates: Partial<TextLabelType>) => {
@@ -767,6 +790,7 @@ export default function Board() {
               isSelected={selectedNoteId === note.id}
               onSelect={() => { if (currentTool === 'cursor' && !isPanning && !isSpacePressed) { clearSelection(); setSelectedNoteId(note.id); } }}
               zoom={zoom}
+              isNew={newlyCreatedIds.has(note.id)}
             />
           ))}
 
@@ -779,6 +803,7 @@ export default function Board() {
               isSelected={selectedLabelId === label.id}
               onSelect={() => { if (currentTool === 'cursor' && !isPanning && !isSpacePressed) { clearSelection(); setSelectedLabelId(label.id); } }}
               zoom={zoom}
+              isNew={newlyCreatedIds.has(label.id)}
             />
           ))}
 

@@ -14,6 +14,7 @@ interface TextLabelProps {
   isSelected?: boolean;
   onSelect?: () => void;
   zoom?: number;
+  isNew?: boolean; // Flag for newly created labels
 }
 
 const fontStyleMap: Record<FontStyle, string> = {
@@ -30,7 +31,7 @@ const fontWeightMap: Record<FontStyle, number> = {
   handwritten: 400,
 };
 
-export function TextLabel({ label, onUpdate, onDelete, isSelected, onSelect, zoom = 1 }: TextLabelProps) {
+export function TextLabel({ label, onUpdate, onDelete, isSelected, onSelect, zoom = 1, isNew = false }: TextLabelProps) {
   const controls = useDragControls();
   const [isEditing, setIsEditing] = useState(false);
   const [isRotating, setIsRotating] = useState(false);
@@ -47,6 +48,7 @@ export function TextLabel({ label, onUpdate, onDelete, isSelected, onSelect, zoo
     setLocalRotation(label.rotation || 0);
   }, [label.rotation]);
 
+  // Auto-focus when entering edit mode
   useEffect(() => {
     if (isEditing && inputRef.current) {
       inputRef.current.focus();
@@ -54,7 +56,15 @@ export function TextLabel({ label, onUpdate, onDelete, isSelected, onSelect, zoo
     }
   }, [isEditing]);
 
-  const handleDoubleClick = () => {
+  // Auto-focus and enter edit mode for newly created labels
+  useEffect(() => {
+    if (isNew && isSelected && !isEditing) {
+      setIsEditing(true);
+    }
+  }, [isNew, isSelected, isEditing]);
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent deselection
     setIsEditing(true);
   };
 
@@ -127,9 +137,9 @@ export function TextLabel({ label, onUpdate, onDelete, isSelected, onSelect, zoo
       dragMomentum={false}
       dragListener={false}
       initial={{ x: label.x, y: label.y, rotate: label.rotation || 0, scale: 0.8, opacity: 0 }}
-      animate={{ 
-        x: label.x, 
-        y: label.y, 
+      animate={{
+        x: label.x,
+        y: label.y,
         rotate: isRotating ? localRotation : (isSelected ? localRotation : (label.rotation || 0)),
         scale: isSelected ? 1.05 : 1,
         opacity: 1,
@@ -144,7 +154,8 @@ export function TextLabel({ label, onUpdate, onDelete, isSelected, onSelect, zoo
       }}
       className={cn(
         "absolute flex items-center gap-2 cursor-pointer select-none group",
-        isSelected && "ring-2 ring-primary/30 rounded px-2 py-1 bg-white/50"
+        isSelected && "ring-2 ring-primary/30 rounded px-2 py-1 bg-white/50",
+        isEditing && "ring-4 ring-blue-400/60 shadow-blue-200 bg-white/70" // Visual editing indicator
       )}
       data-testid={`text-label-${label.id}`}
     >
@@ -161,7 +172,7 @@ export function TextLabel({ label, onUpdate, onDelete, isSelected, onSelect, zoo
         "absolute -top-12 left-0 right-0 h-10 flex items-center justify-center gap-2 transition-opacity",
         isSelected || isEditing ? "opacity-100" : "opacity-0 group-hover:opacity-100"
       )}>
-        
+
         <Button
           variant="ghost"
           size="icon"
@@ -172,9 +183,9 @@ export function TextLabel({ label, onUpdate, onDelete, isSelected, onSelect, zoo
           <Type className="w-4 h-4" />
         </Button>
 
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="icon"
           className="h-8 w-8 rounded-full bg-white shadow-sm border border-gray-200 hover:bg-red-50 hover:text-red-500"
           onClick={(e) => { e.stopPropagation(); onDelete(label.id); }}
         >
@@ -200,7 +211,7 @@ export function TextLabel({ label, onUpdate, onDelete, isSelected, onSelect, zoo
           placeholder="Type here..."
         />
       ) : (
-        <div 
+        <div
           onDoubleClick={handleDoubleClick}
           style={{
             fontFamily: fontStyleMap[label.fontStyle as FontStyle] || fontStyleMap.handwritten,
