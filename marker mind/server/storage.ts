@@ -322,34 +322,52 @@ export class DatabaseStorage implements IStorage {
       images: BoardImage[];
     }
   ): Promise<void> {
-    await db.transaction(async (tx) => {
-      // 1. Clear existing content
-      await tx.delete(stickyNotes).where(eq(stickyNotes.boardId, boardId));
-      await tx.delete(drawings).where(eq(drawings.boardId, boardId));
-      await tx.delete(textLabels).where(eq(textLabels.boardId, boardId));
-      await tx.delete(lines).where(eq(lines.boardId, boardId));
-      await tx.delete(boardImages).where(eq(boardImages.boardId, boardId));
+    try {
+      await db.transaction(async (tx) => {
+        console.log(`[Storage] Clearing existing content for board ${boardId}`);
+        // 1. Clear existing content
+        await tx.delete(stickyNotes).where(eq(stickyNotes.boardId, boardId));
+        await tx.delete(drawings).where(eq(drawings.boardId, boardId));
+        await tx.delete(textLabels).where(eq(textLabels.boardId, boardId));
+        await tx.delete(lines).where(eq(lines.boardId, boardId));
+        await tx.delete(boardImages).where(eq(boardImages.boardId, boardId));
 
-      // 2. Insert new content (if any)
-      if (content.stickyNotes.length > 0) {
-        await tx.insert(stickyNotes).values(content.stickyNotes.map(n => ({ ...n, boardId })));
-      }
-      if (content.drawings.length > 0) {
-        await tx.insert(drawings).values(content.drawings.map(d => ({ ...d, boardId })));
-      }
-      if (content.textLabels.length > 0) {
-        await tx.insert(textLabels).values(content.textLabels.map(l => ({ ...l, boardId })));
-      }
-      if (content.lines.length > 0) {
-        await tx.insert(lines).values(content.lines.map(l => ({ ...l, boardId })));
-      }
-      if (content.images.length > 0) {
-        await tx.insert(boardImages).values(content.images.map(i => ({ ...i, boardId })));
-      }
+        console.log(`[Storage] Inserting new content... Notes: ${content.stickyNotes.length}, Drawings: ${content.drawings.length}, Labels: ${content.textLabels.length}, Lines: ${content.lines.length}, Images: ${content.images.length}`);
 
-      // Update board timestamp
-      await tx.update(boards).set({ updatedAt: new Date() }).where(eq(boards.id, boardId));
-    });
+        // Helper to clean object for insertion
+        const clean = (obj: any) => {
+          const newObj = { ...obj, boardId };
+          if (typeof newObj.createdAt === 'string') newObj.createdAt = new Date(newObj.createdAt);
+          if (typeof newObj.updatedAt === 'string') newObj.updatedAt = new Date(newObj.updatedAt);
+          return newObj;
+        };
+
+        // 2. Insert new content (if any)
+        if (content.stickyNotes.length > 0) {
+          await tx.insert(stickyNotes).values(content.stickyNotes.map(clean));
+        }
+        if (content.drawings.length > 0) {
+          await tx.insert(drawings).values(content.drawings.map(clean));
+        }
+        if (content.textLabels.length > 0) {
+          await tx.insert(textLabels).values(content.textLabels.map(clean));
+        }
+        if (content.lines.length > 0) {
+          await tx.insert(lines).values(content.lines.map(clean));
+        }
+        if (content.images.length > 0) {
+          await tx.insert(boardImages).values(content.images.map(clean));
+        }
+
+        console.log(`[Storage] Updating board timestamp`);
+        // Update board timestamp
+        await tx.update(boards).set({ updatedAt: new Date() }).where(eq(boards.id, boardId));
+      });
+      console.log(`[Storage] Save transaction committed successfully`);
+    } catch (error) {
+      console.error("[Storage] Transaction failed:", error);
+      throw error; // Re-throw to be caught by route handler
+    }
   }
 }
 
