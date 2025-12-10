@@ -136,6 +136,18 @@ export default function Board() {
     }
   }, [serverBoardData, localBoard, hasUnsavedChanges]);
 
+  // Warn user before leaving page if there are unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = ''; // Required for some browsers
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
   // Use local board for rendering if available, otherwise fallback (though we wait for loading)
   const boardData = localBoard ? { ...serverBoardData, ...localBoard } : serverBoardData;
 
