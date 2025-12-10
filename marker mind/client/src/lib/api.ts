@@ -86,7 +86,12 @@ export async function saveBoard(id: string, content: any): Promise<void> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(content)
   });
-  if (!res.ok) throw new Error('Failed to save board');
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error(`Save failed with status ${res.status}: ${errorText}`);
+    throw new Error(`Failed to save board: ${res.status} ${res.statusText}`);
+  }
 }
 
 // ============ STICKY NOTES ============

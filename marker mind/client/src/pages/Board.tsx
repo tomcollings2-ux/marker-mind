@@ -331,10 +331,19 @@ export default function Board() {
       queryClient.invalidateQueries({ queryKey: ['board', boardId] }); // Refresh from server to be sure
       setHasUnsavedChanges(false);
       toast({ title: "Board Saved", description: "Your changes have been saved to the server." });
+    },
+    onError: (error) => {
+      console.error("Failed to save board:", error);
+      toast({
+        title: "Save Failed",
+        description: "Could not save changes to the server. Please try again.",
+        variant: "destructive"
+      });
     }
   });
 
   const handleSave = () => {
+    console.log("Saving board...");
     saveBoardMutation.mutate();
   };
 
@@ -770,6 +779,7 @@ export default function Board() {
           onUploadImage={handleUploadImage}
           toolSettings={toolSettings}
           onToolSettingsChange={(updates) => setToolSettings(prev => ({ ...prev, ...updates }))}
+          isSaving={saveBoardMutation.isPending}
         />
 
         <AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>

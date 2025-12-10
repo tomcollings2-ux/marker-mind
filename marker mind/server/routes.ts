@@ -169,16 +169,25 @@ export async function registerRoutes(
 
   app.post("/api/boards/:id/save", requireAuth, async (req: any, res) => {
     try {
+      const contentSize = JSON.stringify(req.body).length;
+      console.log(`[Save Board] Request received for board ${req.params.id}. Payload size: ${(contentSize / 1024 / 1024).toFixed(2)} MB`);
+
       const board = await storage.getBoard(req.params.id, req.user.id);
       if (!board) {
+        console.error(`[Save Board] Board ${req.params.id} not found or unauthorized for user ${req.user.id}`);
         return res.status(404).json({ error: "Board not found or unauthorized" });
       }
 
+      console.log(`[Save Board] Starting database transaction...`);
+      const startTime = Date.now();
       await storage.saveBoardContent(req.params.id, req.body);
+      const duration = Date.now() - startTime;
+      console.log(`[Save Board] Transaction completed successfully in ${duration}ms`);
+
       res.status(200).json({ message: "Board saved successfully" });
     } catch (error) {
-      console.error("Save error:", error);
-      res.status(500).json({ error: "Failed to save board" });
+      console.error("[Save Board] Save error:", error);
+      res.status(500).json({ error: "Failed to save board. Check server logs." });
     }
   });
 

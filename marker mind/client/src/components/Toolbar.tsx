@@ -72,8 +72,9 @@ export function Toolbar({
   hasSelection,
   onUploadImage,
   toolSettings = defaultToolSettings,
-  onToolSettingsChange
-}: ToolbarProps) {
+  onToolSettingsChange,
+  isSaving
+}: ToolbarProps & { isSaving?: boolean }) {
   const handleImageUpload = () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -393,12 +394,23 @@ export function Toolbar({
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="sm" onClick={onSave} className="gap-1 hover:bg-green-50 hover:text-green-600" data-testid="save-board">
-                <Save className="w-4 h-4" />
-                Save
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onSave}
+                disabled={isSaving}
+                className="gap-1 hover:bg-green-50 hover:text-green-600"
+                data-testid="save-board"
+              >
+                {isSaving ? (
+                  <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                {isSaving ? 'Saving...' : 'Save'}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Auto-saved</TooltipContent>
+            <TooltipContent>Save Board</TooltipContent>
           </Tooltip>
 
           <Tooltip>
