@@ -234,23 +234,58 @@ export default function Board() {
 
   // Sticky Note Handlers
   const handleUpdateNote = (id: string, updates: Partial<StickyNoteType>) => {
-    setLocalBoard(prev => prev ? ({
-      ...prev,
-      stickyNotes: prev.stickyNotes.map(n => n.id === id ? { ...n, ...updates } : n)
-    }) : null);
+    if (!localBoard) return;
+    const beforeState = { ...localBoard };
+
+    setLocalBoard(prev => {
+      if (!prev) return null;
+      const afterState = {
+        ...prev,
+        stickyNotes: prev.stickyNotes.map(n => n.id === id ? { ...n, ...updates } : n)
+      };
+
+      // Record action in history
+      history.push({
+        type: 'update',
+        elementType: 'note',
+        before: beforeState,
+        after: afterState
+      });
+
+      return afterState;
+    });
     setHasUnsavedChanges(true);
   };
 
   const handleDeleteNote = (id: string) => {
-    setLocalBoard(prev => prev ? ({
-      ...prev,
-      stickyNotes: prev.stickyNotes.filter(n => n.id !== id)
-    }) : null);
+    if (!localBoard) return;
+    const beforeState = { ...localBoard };
+
+    setLocalBoard(prev => {
+      if (!prev) return null;
+      const afterState = {
+        ...prev,
+        stickyNotes: prev.stickyNotes.filter(n => n.id !== id)
+      };
+
+      // Record action in history
+      history.push({
+        type: 'delete',
+        elementType: 'note',
+        before: beforeState,
+        after: afterState
+      });
+
+      return afterState;
+    });
     setHasUnsavedChanges(true);
     if (selectedNoteId === id) setSelectedNoteId(null);
   };
 
   const createNote = (note: Omit<StickyNoteType, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (!localBoard) return;
+    const beforeState = { ...localBoard };
+
     const newNote: StickyNoteType = {
       ...note,
       id: generateId(),
@@ -260,10 +295,25 @@ export default function Board() {
       width: note.width || DEFAULT_NOTE_WIDTH,
       height: note.height || DEFAULT_NOTE_HEIGHT,
     };
-    setLocalBoard(prev => prev ? ({
-      ...prev,
-      stickyNotes: [...prev.stickyNotes, newNote]
-    }) : null);
+
+    setLocalBoard(prev => {
+      if (!prev) return null;
+      const afterState = {
+        ...prev,
+        stickyNotes: [...prev.stickyNotes, newNote]
+      };
+
+      // Record creation in history
+      history.push({
+        type: 'create',
+        elementType: 'note',
+        before: beforeState,
+        after: afterState
+      });
+
+      return afterState;
+    });
+
     setHasUnsavedChanges(true);
     setSelectedNoteId(newNote.id);
     setNewlyCreatedIds(prev => new Set(prev).add(newNote.id)); // Mark as new
