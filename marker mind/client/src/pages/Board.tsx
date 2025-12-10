@@ -520,13 +520,41 @@ export default function Board() {
 
     // Internal helpers for preset loading connecting to local state
     const addNote = (text: string, x: number, y: number, color: NoteColor, rotation = 0, width: number | null = null, height: number | null = null) => {
-      createNote({ boardId, text, x: Math.floor(x), y: Math.floor(y), color, shape: 'rectangle', rotation, width, height, fontSize: 18, fontFamily: 'marker', textColor: '#333333' });
+      createNote({
+        boardId: boardId!,
+        text,
+        x: Math.floor(x),
+        y: Math.floor(y),
+        color,
+        shape: 'rectangle', // Fixed shape for templates
+        rotation,
+        width,
+        height,
+        fontSize: 18,
+        fontFamily: 'marker',
+        textColor: '#333333'
+      });
     };
     const addL = (x1: number, y1: number, x2: number, y2: number, thickness = 2) => {
-      handleCreateLine({ x1, y1, x2, y2, color: '#888888', thickness, lineStyle: 'solid' });
+      handleCreateLine({
+        boardId: boardId!,
+        x1, y1, x2, y2,
+        color: '#888888',
+        thickness,
+        lineStyle: 'solid'
+      });
     };
     const addLabel = (text: string, x: number, y: number, fontSize = 20) => {
-      handleCreateTextLabel({ text, x: Math.floor(x), y: Math.floor(y), fontSize, fontStyle: 'marker', color: '#333333', rotation: 0 });
+      handleCreateTextLabel({
+        boardId: boardId!,
+        text,
+        x: Math.floor(x),
+        y: Math.floor(y),
+        fontSize,
+        fontStyle: 'marker',
+        color: '#333333',
+        rotation: 0
+      });
     };
 
     switch (preset) {
