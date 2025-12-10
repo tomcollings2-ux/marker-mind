@@ -1,4 +1,4 @@
-import { Pen, Save, Trash2, MousePointer2, Type, Minus, X, ChevronDown, Layout, Users, Target, Lightbulb, Grid3X3, ArrowUpDown, ImagePlus, Palette } from 'lucide-react';
+import { Pen, Save, Trash2, MousePointer2, Type, Minus, X, ChevronDown, Layout, Users, Target, Lightbulb, Grid3X3, ArrowUpDown, ImagePlus, Palette, Undo2, Redo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -37,6 +37,10 @@ interface ToolbarProps {
   onUploadImage?: (file: File) => void;
   toolSettings?: ToolSettings;
   onToolSettingsChange?: (settings: Partial<ToolSettings>) => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
 }
 
 const presets: { id: PresetType; name: string; icon: React.ElementType; description: string }[] = [
@@ -73,6 +77,10 @@ export function Toolbar({
   onUploadImage,
   toolSettings = defaultToolSettings,
   onToolSettingsChange,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
   isSaving
 }: ToolbarProps & { isSaving?: boolean }) {
   const handleImageUpload = () => {
@@ -389,6 +397,42 @@ export function Toolbar({
               <TooltipContent>Delete Selected</TooltipContent>
             </Tooltip>
           )}
+
+          <Separator orientation="vertical" className="h-6" />
+
+          {/* Undo Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onUndo}
+                disabled={!canUndo}
+                className="gap-1 hover:bg-blue-50 hover:text-blue-600"
+                data-testid="undo"
+              >
+                <Undo2 className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Undo (Ctrl/Cmd+Z)</TooltipContent>
+          </Tooltip>
+
+          {/* Redo Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onRedo}
+                disabled={!canRedo}
+                className="gap-1 hover:bg-blue-50 hover:text-blue-600"
+                data-testid="redo"
+              >
+                <Redo2 className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Redo (Ctrl/Cmd+Shift+Z)</TooltipContent>
+          </Tooltip>
 
           <Separator orientation="vertical" className="h-6" />
 

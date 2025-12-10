@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useHistory } from '@/hooks/useHistory';
 import type { StickyNote as StickyNoteType, TextLabel as TextLabelType, Line as LineType, BoardImage as BoardImageType } from '@shared/schema';
 import type { Line } from '@shared/schema';
 import * as api from '@/lib/api';
@@ -150,6 +151,80 @@ export default function Board() {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasUnsavedChanges]);
+
+  // History management for undo/redo
+  const history = useHistory(20);
+
+  // Safe undo with error handling
+  const safeUndo = useCallback(() => {
+    try {
+      const previousState = history.undo();
+      if (previousState && localBoard) {
+        setLocalBoard(previousState);
+        setHasUnsavedChanges(true); // Undo creates an unsaved state
+        toast({ title: "Undone", description: "Action reversed" });
+      }
+    } catch (error) {
+      console.error('Undo failed:', error);
+      toast({
+        title: "Undo Failed",
+        description: "Could not undo action. State may be corrupted.",
+        variant: "destructive"
+      });
+    }
+  }, [history, localBoard, toast]);
+
+  // Safe redo with error handling
+  const safeRedo = useCallback(() => {
+    try {
+      const nextState = history.redo();
+      if (nextState && localBoard) {
+        setLocalBoard(nextState);
+        setHasUnsavedChanges(true); // Redo creates an unsaved state
+        toast({ title: "Redone", description: "Action reapplied" });
+      }
+    } catch (error) {
+      console.error('Redo failed:', error);
+      toast({
+        title: "Redo Failed",
+        description: "Could not redo action.",
+        variant: "destructive"
+      });
+    }
+  }, [history, localBoard, toast]);
+
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const isEditableElement = (el: EventTarget | null): boolean => {
+      if (!el || !(el instanceof HTMLElement)) return false;
+      const tagName = el.tagName.toLowerCase();
+      return tagName === 'input' || tagName === 'textarea' || el.isContentEditable;
+    };
+
+    const handleKeyboard = (e: KeyboardEvent) => {
+      if (isEditableElement(e.target)) return;
+
+      const isMac = navigator.platform.includes('Mac');
+      const modifier = isMac ? e.metaKey : e.ctrlKey;
+
+      if (modifier && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        safeUndo();
+      }
+      if (modifier && e.key === 'z' && e.shiftKey) {
+        e.preventDefault();
+        safeRedo();
+      }
+      // Alternative redo shortcut (Ctrl/Cmd+Y)
+      if (modifier && e.key === 'y') {
+        e.preventDefault();
+        safeRedo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyboard);
+    return () => window.removeEventListener('keydown', handleKeyboard);
+  }, [safeUndo, safeRedo]);
 
   // Use local board for rendering if available, otherwise fallback (though we wait for loading)
   const boardData = localBoard ? { ...serverBoardData, ...localBoard } : serverBoardData;
@@ -832,6 +907,10 @@ export default function Board() {
           onUploadImage={handleUploadImage}
           toolSettings={toolSettings}
           onToolSettingsChange={(updates) => setToolSettings(prev => ({ ...prev, ...updates }))}
+          onUndo={safeUndo}
+          onRedo={safeRedo}
+          canUndo={history.canUndo}
+          canRedo={history.canRedo}
           isSaving={saveBoardMutation.isPending}
         />
 
