@@ -527,27 +527,11 @@ export default function Board() {
     };
   }, [isSpacePressed]);
 
+  // Trackpad zoom disabled per user request
   const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-
-    const isTrackpad = Math.abs(e.deltaY) < 50;
-    const zoomSpeed = isTrackpad ? 0.002 : 0.05;
-    const zoomDelta = -e.deltaY * zoomSpeed;
-    const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom + zoomDelta));
-
-    if (canvasRef.current && Math.abs(newZoom - zoom) > 0.001) {
-      const rect = canvasRef.current.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
-
-      const zoomRatio = newZoom / zoom;
-      const newPanX = mouseX - (mouseX - pan.x) * zoomRatio;
-      const newPanY = mouseY - (mouseY - pan.y) * zoomRatio;
-
-      setPan({ x: newPanX, y: newPanY });
-      setZoom(newZoom);
-    }
-  }, [zoom, pan]);
+    // Zoom only with buttons/slider, not trackpad
+    return;
+  }, []);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.target === e.currentTarget || isSpacePressed || e.button === 1) {
@@ -578,13 +562,7 @@ export default function Board() {
     });
   }, []);
 
-  const handleZoomOut = useCallback(() => {
-    setZoom(z => {
-      const currentPercent = Math.round(z * 100);
-      const nextPercent = Math.floor(currentPercent / 25) * 25 - 25;
-      return Math.max(MIN_ZOOM, Math.max(25, nextPercent) / 100);
-    });
-  }, []);
+  // Zoom out removed per user request
 
   const handleResetZoom = useCallback(() => {
     setZoom(1);
@@ -984,7 +962,6 @@ export default function Board() {
         <ZoomControls
           zoom={zoom}
           onZoomIn={handleZoomIn}
-          onZoomOut={handleZoomOut}
           onResetZoom={handleResetZoom}
         />
 

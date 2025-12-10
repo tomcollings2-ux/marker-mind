@@ -5,30 +5,14 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 interface ZoomControlsProps {
   zoom: number;
   onZoomIn: () => void;
-  onZoomOut: () => void;
   onResetZoom: () => void;
 }
 
-export function ZoomControls({ zoom, onZoomIn, onZoomOut, onResetZoom }: ZoomControlsProps) {
+export function ZoomControls({ zoom, onZoomIn, onResetZoom }: ZoomControlsProps) {
   const zoomPercent = Math.round(zoom * 100);
 
   return (
     <div className="fixed bottom-4 right-4 flex items-center gap-1 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 p-1 z-50" data-testid="zoom-controls">
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onZoomOut}
-            className="h-8 w-8"
-            data-testid="zoom-out"
-          >
-            <ZoomOut className="w-4 h-4" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>Zoom Out</TooltipContent>
-      </Tooltip>
-
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
