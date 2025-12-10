@@ -234,14 +234,13 @@ export default function Board() {
 
   // Sticky Note Handlers
   const handleUpdateNote = (id: string, updates: Partial<StickyNoteType>) => {
-    if (!localBoard) return;
-    const beforeState = { ...localBoard };
+    const beforeState = localBoard || { stickyNotes: [], drawings: [], textLabels: [], lines: [], images: [] };
 
     setLocalBoard(prev => {
-      if (!prev) return null;
+      const current = prev || { stickyNotes: [], drawings: [], textLabels: [], lines: [], images: [] };
       const afterState = {
-        ...prev,
-        stickyNotes: prev.stickyNotes.map(n => n.id === id ? { ...n, ...updates } : n)
+        ...current,
+        stickyNotes: current.stickyNotes.map(n => n.id === id ? { ...n, ...updates } : n)
       };
 
       // Record action in history
@@ -258,14 +257,13 @@ export default function Board() {
   };
 
   const handleDeleteNote = (id: string) => {
-    if (!localBoard) return;
-    const beforeState = { ...localBoard };
+    const beforeState = localBoard || { stickyNotes: [], drawings: [], textLabels: [], lines: [], images: [] };
 
     setLocalBoard(prev => {
-      if (!prev) return null;
+      const current = prev || { stickyNotes: [], drawings: [], textLabels: [], lines: [], images: [] };
       const afterState = {
-        ...prev,
-        stickyNotes: prev.stickyNotes.filter(n => n.id !== id)
+        ...current,
+        stickyNotes: current.stickyNotes.filter(n => n.id !== id)
       };
 
       // Record action in history
@@ -283,8 +281,7 @@ export default function Board() {
   };
 
   const createNote = (note: Omit<StickyNoteType, 'id' | 'createdAt' | 'updatedAt'>) => {
-    if (!localBoard) return;
-    const beforeState = { ...localBoard };
+    const beforeState = localBoard || { stickyNotes: [], drawings: [], textLabels: [], lines: [], images: [] };
 
     const newNote: StickyNoteType = {
       ...note,
@@ -297,10 +294,10 @@ export default function Board() {
     };
 
     setLocalBoard(prev => {
-      if (!prev) return null;
+      const current = prev || { stickyNotes: [], drawings: [], textLabels: [], lines: [], images: [] };
       const afterState = {
-        ...prev,
-        stickyNotes: [...prev.stickyNotes, newNote]
+        ...current,
+        stickyNotes: [...current.stickyNotes, newNote]
       };
 
       // Record creation in history
