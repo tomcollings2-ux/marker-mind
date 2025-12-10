@@ -41,8 +41,10 @@ export function StickyNote({ note, onUpdate, onDelete, isSelected, onSelect, zoo
   const [isRotating, setIsRotating] = useState(false);
   const [localText, setLocalText] = useState(note.text);
   const [localRotation, setLocalRotation] = useState(note.rotation);
+  const [dynamicFontSize, setDynamicFontSize] = useState(18);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const noteRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
 
   const noteWidth = note.width || 200;
   const noteHeight = note.height || 200;
@@ -54,6 +56,36 @@ export function StickyNote({ note, onUpdate, onDelete, isSelected, onSelect, zoo
   useEffect(() => {
     setLocalText(note.text);
   }, [note.text]);
+
+  // Auto-resize font logic
+  React.useLayoutEffect(() => {
+    if (!measureRef.current) return;
+
+    const textToMeasure = localText || 'Double click to edit';
+    const padding = 32; // p-4 (16px) * 2
+    const availableWidth = noteWidth - padding;
+    const availableHeight = noteHeight - padding;
+
+    let min = 10;
+    let max = 200;
+    let optimal = min;
+
+    // Binary search for best fit
+    while (min <= max) {
+      const mid = Math.floor((min + max) / 2);
+      measureRef.current.style.fontSize = `${mid}px`;
+
+      // Check height constraint (width is handled by CSS width constraint on measureRef)
+      if (measureRef.current.scrollHeight <= availableHeight) {
+        optimal = mid;
+        min = mid + 1;
+      } else {
+        max = mid - 1;
+      }
+    }
+
+    setDynamicFontSize(optimal);
+  }, [localText, noteWidth, noteHeight, note.fontFamily]);
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -78,10 +110,11 @@ export function StickyNote({ note, onUpdate, onDelete, isSelected, onSelect, zoo
   };
 
   const handleResizeStart = (e: React.PointerEvent) => {
+    // ... existing resize start code ...
     e.stopPropagation();
     e.preventDefault();
     setIsResizing(true);
-    
+
     const startX = e.clientX;
     const startY = e.clientY;
     const startWidth = noteWidth;
@@ -92,7 +125,7 @@ export function StickyNote({ note, onUpdate, onDelete, isSelected, onSelect, zoo
       const dy = (moveEvent.clientY - startY) / zoom;
       const newWidth = Math.max(120, startWidth + dx);
       const newHeight = Math.max(120, startHeight + dy);
-      
+
       if (noteRef.current) {
         noteRef.current.style.width = `${newWidth}px`;
         noteRef.current.style.height = `${newHeight}px`;
@@ -116,6 +149,7 @@ export function StickyNote({ note, onUpdate, onDelete, isSelected, onSelect, zoo
     document.addEventListener('pointercancel', handleResizeEnd);
   };
 
+  // ... existing rotate code ...
   const handleRotateStart = (e: React.PointerEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -158,9 +192,9 @@ export function StickyNote({ note, onUpdate, onDelete, isSelected, onSelect, zoo
       dragMomentum={false}
       dragListener={false}
       initial={{ x: note.x, y: note.y, rotate: note.rotation, scale: 0.8, opacity: 0 }}
-      animate={{ 
-        x: note.x, 
-        y: note.y, 
+      animate={{
+        x: note.x,
+        y: note.y,
         rotate: isRotating ? localRotation : (isSelected ? localRotation : note.rotation),
         scale: isSelected ? 1.02 : 1,
         opacity: 1,
@@ -189,6 +223,20 @@ export function StickyNote({ note, onUpdate, onDelete, isSelected, onSelect, zoo
       }}
       data-testid={`sticky-note-${note.id}`}
     >
+      {/* Hidden Measure Element */}
+      <div
+        ref={measureRef}
+        className="absolute p-0 m-0 pointer-events-none whitespace-pre-wrap break-words leading-relaxed"
+        style={{
+          visibility: 'hidden',
+          width: noteWidth - 32,
+          fontFamily: fontFamilyMap[note.fontFamily || 'marker'] || 'var(--font-marker)',
+        }}
+        aria-hidden="true"
+      >
+        {localText || 'Double click to edit'}
+      </div>
+
       {/* Drag Handle - Large area at top */}
       <div
         onPointerDown={(e) => controls.start(e)}
@@ -204,7 +252,7 @@ export function StickyNote({ note, onUpdate, onDelete, isSelected, onSelect, zoo
         isSelected || isEditing ? "opacity-100" : "opacity-0 group-hover:opacity-100",
         note.shape === 'circle' && "-top-14"
       )}>
-        
+
         <div className="flex bg-white rounded-full shadow-sm border border-gray-200 p-1 gap-1">
           {(['yellow', 'pink', 'blue', 'green', 'orange'] as NoteColor[]).map((c) => (
             <button
@@ -216,9 +264,9 @@ export function StickyNote({ note, onUpdate, onDelete, isSelected, onSelect, zoo
           ))}
         </div>
 
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="icon"
           className="h-8 w-8 rounded-full bg-white shadow-sm border border-gray-200 hover:bg-red-50 hover:text-red-500"
           onClick={(e) => { e.stopPropagation(); onDelete(note.id); }}
           data-testid={`delete-note-${note.id}`}
@@ -235,26 +283,26 @@ export function StickyNote({ note, onUpdate, onDelete, isSelected, onSelect, zoo
           onChange={handleChange}
           onBlur={handleBlur}
           className={cn(
-            "w-full h-full bg-transparent border-none resize-none focus-visible:ring-0 p-0 leading-relaxed placeholder:text-gray-400/50",
+            "w-full h-full bg-transparent border-none resize-none focus-visible:ring-0 p-0 leading-relaxed placeholder:text-gray-400/50 overflow-hidden",
             note.shape === 'circle' && "text-center mt-6"
           )}
-          style={{ 
+          style={{
             fontFamily: fontFamilyMap[note.fontFamily || 'marker'] || 'var(--font-marker)',
-            fontSize: note.fontSize || 18,
+            fontSize: dynamicFontSize,
             color: note.textColor || '#333333',
           }}
           placeholder="Write something..."
           data-testid={`textarea-${note.id}`}
         />
       ) : (
-        <div 
+        <div
           onDoubleClick={handleDoubleClick}
           className={cn(
             "w-full h-full whitespace-pre-wrap break-words leading-relaxed overflow-hidden",
             note.shape === 'circle' && "flex items-center justify-center"
           )}
           style={{
-            fontSize: note.fontSize || 18,
+            fontSize: dynamicFontSize,
             color: note.textColor || '#333333',
           }}
           data-testid={`note-text-${note.id}`}

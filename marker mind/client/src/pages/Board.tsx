@@ -11,20 +11,54 @@ import { BoardImage } from '@/components/BoardImage';
 import { Toolbar } from '@/components/Toolbar';
 import { ZoomControls } from '@/components/ZoomControls';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/lib/AuthContext';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Home, LogOut, User, Settings } from 'lucide-react';
 import textureImage from '@assets/generated_images/subtle_whiteboard_texture.png';
 import { useRoute, useLocation } from 'wouter';
 
 type NoteColor = 'yellow' | 'pink' | 'blue' | 'green' | 'orange';
 type Tool = 'cursor' | 'pen' | 'text' | 'line';
 
+interface ToolSettings {
+  penColor: string;
+  penThickness: number;
+  lineColor: string;
+  lineThickness: number;
+  textColor: string;
+  textSize: number;
+}
+
 const DEFAULT_NOTE_WIDTH = 200;
 const DEFAULT_NOTE_HEIGHT = 200;
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 3;
 
+
+type PresetType = 'kanban' | 'swot' | 'persona' | 'brainstorm' | 'pros_cons' | 'timeline' | 'rocket';
+
 export default function Board() {
   const [, params] = useRoute('/board/:id');
   const [, setLocation] = useLocation();
+  const { user, logout } = useAuth();
   const boardId = params?.id;
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -35,13 +69,32 @@ export default function Board() {
   const [selectedLabelId, setSelectedLabelId] = useState<string | null>(null);
   const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
-  
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
+
+  const [toolSettings, setToolSettings] = useState<ToolSettings>({
+    penColor: '#000000',
+    penThickness: 3,
+    lineColor: '#000000',
+    lineThickness: 3,
+    textColor: '#000000',
+    textSize: 24,
+  });
+
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const panStart = useRef({ x: 0, y: 0 });
   const panOffset = useRef({ x: 0, y: 0 });
+
+  const handleLogout = async () => {
+    await logout();
+    setLocation('/login');
+  };
+
+  const handleGoToDashboard = () => {
+    setLocation('/');
+  };
 
   useEffect(() => {
     if (!boardId) {
@@ -54,127 +107,224 @@ export default function Board() {
     }
   }, [boardId, setLocation, toast]);
 
-  const { data: boardData, isLoading } = useQuery({
+  const { data: serverBoardData, isLoading } = useQuery({
     queryKey: ['board', boardId],
     queryFn: () => boardId ? api.getBoard(boardId) : Promise.reject('No board ID'),
     enabled: !!boardId,
     refetchOnWindowFocus: false,
   });
 
-  // Sticky Note Mutations
-  const updateNoteMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: Partial<StickyNoteType> }) => 
-      api.updateStickyNote(id, updates),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['board', boardId] })
-  });
+  const [localBoard, setLocalBoard] = useState<{
+    stickyNotes: StickyNoteType[];
+    drawings: any[];
+    textLabels: TextLabelType[];
+    lines: LineType[];
+    images: BoardImageType[];
+  } | null>(null);
 
-  const deleteNoteMutation = useMutation({
-    mutationFn: api.deleteStickyNote,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['board', boardId] });
-      setSelectedNoteId(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  useEffect(() => {
+    if (serverBoardData && !localBoard && !hasUnsavedChanges) {
+      setLocalBoard({
+        stickyNotes: serverBoardData.stickyNotes,
+        drawings: serverBoardData.drawings,
+        textLabels: serverBoardData.textLabels,
+        lines: serverBoardData.lines,
+        images: serverBoardData.images,
+      });
     }
-  });
+  }, [serverBoardData, localBoard, hasUnsavedChanges]);
 
-  const createNoteMutation = useMutation({
-    mutationFn: api.createStickyNote,
-    onSuccess: (note) => {
-      queryClient.invalidateQueries({ queryKey: ['board', boardId] });
-      setSelectedNoteId(note.id);
-      setCurrentTool('cursor');
-    }
-  });
+  // Use local board for rendering if available, otherwise fallback (though we wait for loading)
+  const boardData = localBoard ? { ...serverBoardData, ...localBoard } : serverBoardData;
 
-  // Drawing Mutations
-  const createDrawingMutation = useMutation({
-    mutationFn: api.createDrawing,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['board', boardId] })
-  });
+  // Helper to generate UUID
+  const generateId = () => crypto.randomUUID();
 
-  // Text Label Mutations
-  const createTextLabelMutation = useMutation({
-    mutationFn: api.createTextLabel,
-    onSuccess: (label) => {
-      queryClient.invalidateQueries({ queryKey: ['board', boardId] });
-      setSelectedLabelId(label.id);
-      setCurrentTool('cursor');
-    }
-  });
+  // Sticky Note Handlers
+  const handleUpdateNote = (id: string, updates: Partial<StickyNoteType>) => {
+    setLocalBoard(prev => prev ? ({
+      ...prev,
+      stickyNotes: prev.stickyNotes.map(n => n.id === id ? { ...n, ...updates } : n)
+    }) : null);
+    setHasUnsavedChanges(true);
+  };
 
-  const updateTextLabelMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: Partial<TextLabelType> }) => 
-      api.updateTextLabel(id, updates),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['board', boardId] })
-  });
+  const handleDeleteNote = (id: string) => {
+    setLocalBoard(prev => prev ? ({
+      ...prev,
+      stickyNotes: prev.stickyNotes.filter(n => n.id !== id)
+    }) : null);
+    setHasUnsavedChanges(true);
+    if (selectedNoteId === id) setSelectedNoteId(null);
+  };
 
-  const deleteTextLabelMutation = useMutation({
-    mutationFn: api.deleteTextLabel,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['board', boardId] });
-      setSelectedLabelId(null);
-    }
-  });
+  const createNote = (note: Omit<StickyNoteType, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const newNote: StickyNoteType = {
+      ...note,
+      id: generateId(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      boardId: boardId!,
+      width: note.width || DEFAULT_NOTE_WIDTH,
+      height: note.height || DEFAULT_NOTE_HEIGHT,
+    };
+    setLocalBoard(prev => prev ? ({
+      ...prev,
+      stickyNotes: [...prev.stickyNotes, newNote]
+    }) : null);
+    setHasUnsavedChanges(true);
+    setSelectedNoteId(newNote.id);
+    setCurrentTool('cursor');
+  };
 
-  // Line Mutations
-  const createLineMutation = useMutation({
-    mutationFn: api.createLine,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['board', boardId] })
-  });
+  // Drawing Handlers
+  const handleAddDrawingLocal = (drawingData: any) => {
+    const newDrawing = {
+      ...drawingData,
+      id: generateId(),
+      boardId: boardId!,
+      createdAt: new Date()
+    };
+    setLocalBoard(prev => prev ? ({
+      ...prev,
+      drawings: [...prev.drawings, newDrawing]
+    }) : null);
+    setHasUnsavedChanges(true);
+  };
 
-  const updateLineMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: Partial<Line> }) => 
-      api.updateLine(id, updates),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['board', boardId] })
-  });
+  // Text Label Handlers
+  const handleCreateTextLabel = (labelData: any) => {
+    const newLabel: TextLabelType = {
+      ...labelData,
+      id: generateId(),
+      boardId: boardId!,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      text: labelData.text || '', // Ensure text is string
+    };
+    setLocalBoard(prev => prev ? ({
+      ...prev,
+      textLabels: [...prev.textLabels, newLabel]
+    }) : null);
+    setHasUnsavedChanges(true);
+    setSelectedLabelId(newLabel.id);
+    setCurrentTool('cursor');
+  };
 
-  const deleteLineMutation = useMutation({
-    mutationFn: api.deleteLine,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['board', boardId] });
-      setSelectedLineId(null);
-    }
-  });
+  const handleUpdateTextLabel = (id: string, updates: Partial<TextLabelType>) => {
+    setLocalBoard(prev => prev ? ({
+      ...prev,
+      textLabels: prev.textLabels.map(l => l.id === id ? { ...l, ...updates } : l)
+    }) : null);
+    setHasUnsavedChanges(true);
+  };
 
-  // Board Image Mutations
-  const createBoardImageMutation = useMutation({
-    mutationFn: api.createBoardImage,
-    onSuccess: (image) => {
-      queryClient.invalidateQueries({ queryKey: ['board', boardId] });
-      setSelectedImageId(image.id);
-    }
-  });
+  const handleDeleteTextLabel = (id: string) => {
+    setLocalBoard(prev => prev ? ({
+      ...prev,
+      textLabels: prev.textLabels.filter(l => l.id !== id)
+    }) : null);
+    setHasUnsavedChanges(true);
+    if (selectedLabelId === id) setSelectedLabelId(null);
+  };
 
-  const updateBoardImageMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: Partial<BoardImageType> }) => 
-      api.updateBoardImage(id, updates),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['board', boardId] })
-  });
+  // Line Handlers
+  const handleCreateLine = (lineData: any) => {
+    const newLine: LineType = {
+      ...lineData,
+      id: generateId(),
+      boardId: boardId!,
+      createdAt: new Date()
+    };
+    setLocalBoard(prev => prev ? ({
+      ...prev,
+      lines: [...prev.lines, newLine]
+    }) : null);
+    setHasUnsavedChanges(true);
+  };
 
-  const deleteBoardImageMutation = useMutation({
-    mutationFn: api.deleteBoardImage,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['board', boardId] });
-      setSelectedImageId(null);
-    }
-  });
+  const handleUpdateLine = (id: string, updates: Partial<LineType>) => {
+    setLocalBoard(prev => prev ? ({
+      ...prev,
+      lines: prev.lines.map(l => l.id === id ? { ...l, ...updates } : l)
+    }) : null);
+    setHasUnsavedChanges(true);
+  };
 
-  // Clear board
-  const clearBoardMutation = useMutation({
+  const handleDeleteLine = (id: string) => {
+    setLocalBoard(prev => prev ? ({
+      ...prev,
+      lines: prev.lines.filter(l => l.id !== id)
+    }) : null);
+    setHasUnsavedChanges(true);
+    if (selectedLineId === id) setSelectedLineId(null);
+  };
+
+  // Board Image Handlers
+  const handleCreateBoardImage = (imageData: any) => {
+    const newImage: BoardImageType = {
+      ...imageData,
+      id: generateId(),
+      boardId: boardId!,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    setLocalBoard(prev => prev ? ({
+      ...prev,
+      images: [...prev.images, newImage]
+    }) : null);
+    setHasUnsavedChanges(true);
+    setSelectedImageId(newImage.id);
+  };
+
+  const handleUpdateBoardImage = (id: string, updates: Partial<BoardImageType>) => {
+    setLocalBoard(prev => prev ? ({
+      ...prev,
+      images: prev.images.map(i => i.id === id ? { ...i, ...updates } : i)
+    }) : null);
+    setHasUnsavedChanges(true);
+  };
+
+  const handleDeleteBoardImage = (id: string) => {
+    setLocalBoard(prev => prev ? ({
+      ...prev,
+      images: prev.images.filter(i => i.id !== id)
+    }) : null);
+    setHasUnsavedChanges(true);
+    if (selectedImageId === id) setSelectedImageId(null);
+  };
+  // Clear board local
+  const handleClearBoard = () => {
+    setLocalBoard({
+      stickyNotes: [],
+      drawings: [],
+      textLabels: [],
+      lines: [],
+      images: [],
+    });
+    setHasUnsavedChanges(true);
+    toast({ title: "Board Cleared", description: "This is a local change. Save to persist." });
+    clearSelection();
+    setClearDialogOpen(false);
+  };
+
+  const saveBoardMutation = useMutation({
     mutationFn: async () => {
-      if (!boardData) return;
-      await Promise.all([
-        ...boardData.stickyNotes.map(n => api.deleteStickyNote(n.id)),
-        ...boardData.drawings.map(d => api.deleteDrawing(d.id)),
-        ...boardData.textLabels.map(l => api.deleteTextLabel(l.id)),
-        ...boardData.lines.map(l => api.deleteLine(l.id)),
-        ...boardData.images.map(i => api.deleteBoardImage(i.id))
-      ]);
+      if (!boardId || !localBoard) return;
+      await api.saveBoard(boardId, localBoard);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['board', boardId] });
-      toast({ title: "Board Cleared" });
+      queryClient.invalidateQueries({ queryKey: ['board', boardId] }); // Refresh from server to be sure
+      setHasUnsavedChanges(false);
+      toast({ title: "Board Saved", description: "Your changes have been saved to the server." });
     }
   });
+
+  const handleSave = () => {
+    saveBoardMutation.mutate();
+  };
 
   const clearSelection = useCallback(() => {
     setSelectedNoteId(null);
@@ -189,7 +339,7 @@ export default function Board() {
       const tagName = el.tagName.toLowerCase();
       return tagName === 'input' || tagName === 'textarea' || el.isContentEditable;
     };
-    
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isEditableElement(e.target)) return;
       if (e.code === 'Space' && !isSpacePressed) {
@@ -213,21 +363,21 @@ export default function Board() {
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    
+
     const isTrackpad = Math.abs(e.deltaY) < 50;
     const zoomSpeed = isTrackpad ? 0.002 : 0.05;
     const zoomDelta = -e.deltaY * zoomSpeed;
     const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom + zoomDelta));
-    
+
     if (canvasRef.current && Math.abs(newZoom - zoom) > 0.001) {
       const rect = canvasRef.current.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
-      
+
       const zoomRatio = newZoom / zoom;
       const newPanX = mouseX - (mouseX - pan.x) * zoomRatio;
       const newPanY = mouseY - (mouseY - pan.y) * zoomRatio;
-      
+
       setPan({ x: newPanX, y: newPanY });
       setZoom(newZoom);
     }
@@ -289,22 +439,13 @@ export default function Board() {
     const x = canvasPos.x - DEFAULT_NOTE_WIDTH / 2 + (Math.random() * 100 - 50);
     const y = canvasPos.y - DEFAULT_NOTE_HEIGHT / 2 + (Math.random() * 100 - 50);
     const rotation = Math.floor(Math.random() * 10 - 5);
-    createNoteMutation.mutate({
-      boardId, text: '', x: Math.floor(x), y: Math.floor(y),
+    createNote({
+      boardId,
+      text: '', x: Math.floor(x), y: Math.floor(y),
       color, shape: 'rectangle', rotation, width: null, height: null,
       fontSize: 18, fontFamily: 'marker', textColor: '#333333',
     });
-  }, [boardId, createNoteMutation, screenToCanvas]);
-
-  const handleAddDrawing = useCallback((drawing: { color: string; thickness: number; path: Array<{x: number; y: number}> }) => {
-    if (!boardId) return;
-    createDrawingMutation.mutate({ ...drawing, boardId });
-  }, [boardId, createDrawingMutation]);
-
-  const handleAddLine = useCallback((line: { x1: number; y1: number; x2: number; y2: number; color: string; thickness: number; lineStyle: string }) => {
-    if (!boardId) return;
-    createLineMutation.mutate({ ...line, boardId });
-  }, [boardId, createLineMutation]);
+  }, [boardId, screenToCanvas]);
 
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
     if (isPanning || isSpacePressed) return;
@@ -313,21 +454,21 @@ export default function Board() {
       const screenX = e.clientX - rect.left;
       const screenY = e.clientY - rect.top;
       const canvasPos = screenToCanvas(screenX, screenY);
-      createTextLabelMutation.mutate({
-        boardId, text: '', x: Math.floor(canvasPos.x), y: Math.floor(canvasPos.y),
-        fontSize: 24, fontStyle: 'handwritten', color: '#000000', rotation: 0
+      handleCreateTextLabel({
+        text: '', x: Math.floor(canvasPos.x), y: Math.floor(canvasPos.y),
+        fontSize: toolSettings.textSize, fontStyle: 'handwritten', color: toolSettings.textColor, rotation: 0
       });
     } else {
       clearSelection();
     }
-  }, [currentTool, boardId, createTextLabelMutation, clearSelection, isPanning, isSpacePressed, screenToCanvas]);
+  }, [currentTool, boardId, clearSelection, isPanning, isSpacePressed, screenToCanvas, toolSettings]);
 
   const handleDeleteSelected = useCallback(() => {
-    if (selectedNoteId) deleteNoteMutation.mutate(selectedNoteId);
-    if (selectedLabelId) deleteTextLabelMutation.mutate(selectedLabelId);
-    if (selectedLineId) deleteLineMutation.mutate(selectedLineId);
-    if (selectedImageId) deleteBoardImageMutation.mutate(selectedImageId);
-  }, [selectedNoteId, selectedLabelId, selectedLineId, selectedImageId, deleteNoteMutation, deleteTextLabelMutation, deleteLineMutation, deleteBoardImageMutation]);
+    if (selectedNoteId) handleDeleteNote(selectedNoteId);
+    if (selectedLabelId) handleDeleteTextLabel(selectedLabelId);
+    if (selectedLineId) handleDeleteLine(selectedLineId);
+    if (selectedImageId) handleDeleteBoardImage(selectedImageId);
+  }, [selectedNoteId, selectedLabelId, selectedLineId, selectedImageId]);
 
   const handleUploadImage = useCallback((file: File) => {
     if (!boardId) return;
@@ -339,8 +480,7 @@ export default function Board() {
       const canvasPos = screenToCanvas(centerScreen.x, centerScreen.y);
       const x = canvasPos.x - 100 + (Math.random() * 50 - 25);
       const y = canvasPos.y - 100 + (Math.random() * 50 - 25);
-      createBoardImageMutation.mutate({
-        boardId,
+      handleCreateBoardImage({
         src,
         x: Math.floor(x),
         y: Math.floor(y),
@@ -350,107 +490,97 @@ export default function Board() {
       });
     };
     reader.readAsDataURL(file);
-  }, [boardId, screenToCanvas, createBoardImageMutation]);
-
-  const handleSave = () => {
-    toast({ title: "Auto-Saved", description: "Your board is automatically saved.", duration: 2000 });
-  };
-
-  const handleClear = () => {
-    if (window.confirm("Clear everything from the board?")) {
-      clearBoardMutation.mutate();
-    }
-  };
-
-  type PresetType = 'kanban' | 'swot' | 'persona' | 'brainstorm' | 'pros_cons' | 'timeline' | 'rocket';
+  }, [boardId, screenToCanvas]);
 
   const handleLoadPreset = (preset: PresetType) => {
     if (!boardId) return;
     const centerW = window.innerWidth / 2;
     const centerH = window.innerHeight / 2 + 50;
-    const createNote = (text: string, x: number, y: number, color: NoteColor, rotation = 0, width: number | null = null, height: number | null = null) => {
-      createNoteMutation.mutate({ boardId, text, x: Math.floor(x), y: Math.floor(y), color, shape: 'rectangle', rotation, width, height, fontSize: 18, fontFamily: 'marker', textColor: '#333333' });
+
+    // Internal helpers for preset loading connecting to local state
+    const addNote = (text: string, x: number, y: number, color: NoteColor, rotation = 0, width: number | null = null, height: number | null = null) => {
+      createNote({ boardId, text, x: Math.floor(x), y: Math.floor(y), color, shape: 'rectangle', rotation, width, height, fontSize: 18, fontFamily: 'marker', textColor: '#333333' });
     };
-    const createL = (x1: number, y1: number, x2: number, y2: number, thickness = 2) => {
-      createLineMutation.mutate({ boardId, x1, y1, x2, y2, color: '#888888', thickness, lineStyle: 'solid' });
+    const addL = (x1: number, y1: number, x2: number, y2: number, thickness = 2) => {
+      handleCreateLine({ x1, y1, x2, y2, color: '#888888', thickness, lineStyle: 'solid' });
     };
-    const createLabel = (text: string, x: number, y: number, fontSize = 20) => {
-      createTextLabelMutation.mutate({ boardId, text, x: Math.floor(x), y: Math.floor(y), fontSize, fontStyle: 'marker', color: '#333333', rotation: 0 });
+    const addLabel = (text: string, x: number, y: number, fontSize = 20) => {
+      handleCreateTextLabel({ text, x: Math.floor(x), y: Math.floor(y), fontSize, fontStyle: 'marker', color: '#333333', rotation: 0 });
     };
 
     switch (preset) {
       case 'kanban':
         const colW = 220;
         const startX = centerW - colW * 2;
-        createLabel('Backlog', startX + 10, centerH - 220, 24);
-        createLabel('In Progress', startX + colW + 10, centerH - 220, 24);
-        createLabel('Needs Review', startX + colW * 2 + 10, centerH - 220, 24);
-        createLabel('Approved', startX + colW * 3 + 10, centerH - 220, 24);
-        createL(startX + colW, centerH - 250, startX + colW, centerH + 250);
-        createL(startX + colW * 2, centerH - 250, startX + colW * 2, centerH + 250);
-        createL(startX + colW * 3, centerH - 250, startX + colW * 3, centerH + 250);
-        createNote('Task 1', startX + 20, centerH - 160, 'pink', -1, 140, 100);
-        createNote('Task 2', startX + 20, centerH - 40, 'yellow', 1, 140, 100);
-        createNote('In work', startX + colW + 20, centerH - 160, 'blue', 0, 140, 100);
-        createNote('Review me', startX + colW * 2 + 20, centerH - 160, 'green', 2, 140, 100);
-        createNote('Done!', startX + colW * 3 + 20, centerH - 160, 'orange', -1, 140, 100);
+        addLabel('Backlog', startX + 10, centerH - 220, 24);
+        addLabel('In Progress', startX + colW + 10, centerH - 220, 24);
+        addLabel('Needs Review', startX + colW * 2 + 10, centerH - 220, 24);
+        addLabel('Approved', startX + colW * 3 + 10, centerH - 220, 24);
+        addL(startX + colW, centerH - 250, startX + colW, centerH + 250);
+        addL(startX + colW * 2, centerH - 250, startX + colW * 2, centerH + 250);
+        addL(startX + colW * 3, centerH - 250, startX + colW * 3, centerH + 250);
+        addNote('Task 1', startX + 20, centerH - 160, 'pink', -1, 140, 100);
+        addNote('Task 2', startX + 20, centerH - 40, 'yellow', 1, 140, 100);
+        addNote('In work', startX + colW + 20, centerH - 160, 'blue', 0, 140, 100);
+        addNote('Review me', startX + colW * 2 + 20, centerH - 160, 'green', 2, 140, 100);
+        addNote('Done!', startX + colW * 3 + 20, centerH - 160, 'orange', -1, 140, 100);
         break;
       case 'swot':
         const qW = 280;
         const qH = 200;
         const sX = centerW - qW;
         const sY = centerH - qH;
-        createLabel('Strengths', sX + 20, sY - 10, 22);
-        createLabel('Weaknesses', sX + qW + 20, sY - 10, 22);
-        createLabel('Opportunities', sX + 20, sY + qH + 10, 22);
-        createLabel('Threats', sX + qW + 20, sY + qH + 10, 22);
-        createL(centerW, sY - 30, centerW, sY + qH * 2 + 50);
-        createL(sX - 30, centerH, sX + qW * 2 + 30, centerH);
-        createNote('', sX + 30, sY + 30, 'green', 0, 120, 100);
-        createNote('', sX + qW + 30, sY + 30, 'yellow', 0, 120, 100);
-        createNote('', sX + 30, sY + qH + 50, 'blue', 0, 120, 100);
-        createNote('', sX + qW + 30, sY + qH + 50, 'pink', 0, 120, 100);
+        addLabel('Strengths', sX + 20, sY - 10, 22);
+        addLabel('Weaknesses', sX + qW + 20, sY - 10, 22);
+        addLabel('Opportunities', sX + 20, sY + qH + 10, 22);
+        addLabel('Threats', sX + qW + 20, sY + qH + 10, 22);
+        addL(centerW, sY - 30, centerW, sY + qH * 2 + 50);
+        addL(sX - 30, centerH, sX + qW * 2 + 30, centerH);
+        addNote('', sX + 30, sY + 30, 'green', 0, 120, 100);
+        addNote('', sX + qW + 30, sY + 30, 'yellow', 0, 120, 100);
+        addNote('', sX + 30, sY + qH + 50, 'blue', 0, 120, 100);
+        addNote('', sX + qW + 30, sY + qH + 50, 'pink', 0, 120, 100);
         break;
       case 'persona':
-        createLabel('User Persona', centerW - 80, centerH - 250, 28);
-        createNote('Name & Role', centerW - 350, centerH - 180, 'blue', -1, 180, 150);
-        createNote('Goals', centerW - 90, centerH - 180, 'green', 1, 180, 150);
-        createNote('Pain Points', centerW + 170, centerH - 180, 'pink', -2, 180, 150);
-        createNote('Motivations', centerW - 250, centerH + 20, 'yellow', 2, 180, 150);
-        createNote('Behaviors', centerW + 50, centerH + 20, 'orange', -1, 180, 150);
+        addLabel('User Persona', centerW - 80, centerH - 250, 28);
+        addNote('Name & Role', centerW - 350, centerH - 180, 'blue', -1, 180, 150);
+        addNote('Goals', centerW - 90, centerH - 180, 'green', 1, 180, 150);
+        addNote('Pain Points', centerW + 170, centerH - 180, 'pink', -2, 180, 150);
+        addNote('Motivations', centerW - 250, centerH + 20, 'yellow', 2, 180, 150);
+        addNote('Behaviors', centerW + 50, centerH + 20, 'orange', -1, 180, 150);
         break;
       case 'brainstorm':
-        createLabel('Brainstorm', centerW - 60, centerH - 280, 28);
-        createNote('Main\nIdea', centerW - 70, centerH - 70, 'yellow', 0, 140, 140);
-        createNote('Idea 1', centerW - 280, centerH - 200, 'pink', -3, 120, 100);
-        createNote('Idea 2', centerW + 140, centerH - 200, 'blue', 2, 120, 100);
-        createNote('Idea 3', centerW - 280, centerH + 80, 'green', 1, 120, 100);
-        createNote('Idea 4', centerW + 140, centerH + 80, 'orange', -1, 120, 100);
+        addLabel('Brainstorm', centerW - 60, centerH - 280, 28);
+        addNote('Main\nIdea', centerW - 70, centerH - 70, 'yellow', 0, 140, 140);
+        addNote('Idea 1', centerW - 280, centerH - 200, 'pink', -3, 120, 100);
+        addNote('Idea 2', centerW + 140, centerH - 200, 'blue', 2, 120, 100);
+        addNote('Idea 3', centerW - 280, centerH + 80, 'green', 1, 120, 100);
+        addNote('Idea 4', centerW + 140, centerH + 80, 'orange', -1, 120, 100);
         break;
       case 'pros_cons':
-        createLabel('Pros', centerW - 200, centerH - 220, 26);
-        createLabel('Cons', centerW + 80, centerH - 220, 26);
-        createL(centerW - 20, centerH - 250, centerW - 20, centerH + 250);
-        createNote('Pro 1', centerW - 220, centerH - 160, 'green', -1, 140, 100);
-        createNote('Pro 2', centerW - 220, centerH - 30, 'green', 1, 140, 100);
-        createNote('Con 1', centerW + 40, centerH - 160, 'pink', 1, 140, 100);
-        createNote('Con 2', centerW + 40, centerH - 30, 'pink', -1, 140, 100);
+        addLabel('Pros', centerW - 200, centerH - 220, 26);
+        addLabel('Cons', centerW + 80, centerH - 220, 26);
+        addL(centerW - 20, centerH - 250, centerW - 20, centerH + 250);
+        addNote('Pro 1', centerW - 220, centerH - 160, 'green', -1, 140, 100);
+        addNote('Pro 2', centerW - 220, centerH - 30, 'green', 1, 140, 100);
+        addNote('Con 1', centerW + 40, centerH - 160, 'pink', 1, 140, 100);
+        addNote('Con 2', centerW + 40, centerH - 30, 'pink', -1, 140, 100);
         break;
       case 'timeline':
-        createLabel('Timeline', centerW - 50, centerH - 200, 28);
-        createL(centerW - 450, centerH, centerW + 450, centerH, 3);
-        createNote('Step 1', centerW - 380, centerH - 130, 'blue', -1, 130, 100);
-        createNote('Step 2', centerW - 150, centerH - 130, 'yellow', 1, 130, 100);
-        createNote('Step 3', centerW + 80, centerH - 130, 'green', -2, 130, 100);
-        createNote('Step 4', centerW + 310, centerH - 130, 'orange', 2, 130, 100);
+        addLabel('Timeline', centerW - 50, centerH - 200, 28);
+        addL(centerW - 450, centerH, centerW + 450, centerH, 3);
+        addNote('Step 1', centerW - 380, centerH - 130, 'blue', -1, 130, 100);
+        addNote('Step 2', centerW - 150, centerH - 130, 'yellow', 1, 130, 100);
+        addNote('Step 3', centerW + 80, centerH - 130, 'green', -2, 130, 100);
+        addNote('Step 4', centerW + 310, centerH - 130, 'orange', 2, 130, 100);
         break;
       case 'rocket':
-        createLabel('Launch Plan', centerW - 60, centerH - 240, 28);
-        createNote('Fueling\n(Prep)', centerW - 320, centerH - 150, 'orange', -2, 150, 120);
-        createNote('Ignition\n(Launch)', centerW - 75, centerH - 150, 'yellow', 1, 150, 120);
-        createNote('Orbit\n(Maintain)', centerW + 170, centerH - 150, 'blue', 3, 150, 120);
-        createL(centerW - 150, centerH - 250, centerW - 150, centerH + 150);
-        createL(centerW + 150, centerH - 250, centerW + 150, centerH + 150);
+        addLabel('Launch Plan', centerW - 60, centerH - 240, 28);
+        addNote('Fueling\n(Prep)', centerW - 320, centerH - 150, 'orange', -2, 150, 120);
+        addNote('Ignition\n(Launch)', centerW - 75, centerH - 150, 'yellow', 1, 150, 120);
+        addNote('Orbit\n(Maintain)', centerW + 170, centerH - 150, 'blue', 3, 150, 120);
+        addL(centerW - 150, centerH - 250, centerW - 150, centerH + 150);
+        addL(centerW + 150, centerH - 250, centerW + 150, centerH + 150);
         break;
     }
     toast({ title: "Template Loaded", description: `${preset.replace('_', ' ').toUpperCase()} template added` });
@@ -466,126 +596,204 @@ export default function Board() {
 
   const hasSelection = !!(selectedNoteId || selectedLabelId || selectedLineId || selectedImageId);
 
-  const cursorStyle = isPanning 
-    ? 'grabbing' 
-    : isSpacePressed 
+  const cursorStyle = isPanning
+    ? 'grabbing'
+    : isSpacePressed
       ? 'grab'
-      : currentTool === 'pen' || currentTool === 'line' 
-        ? 'crosshair' 
-        : currentTool === 'text' 
-          ? 'text' 
+      : currentTool === 'pen' || currentTool === 'line'
+        ? 'crosshair'
+        : currentTool === 'text'
+          ? 'text'
           : currentTool === 'cursor'
             ? 'grab'
             : 'default';
 
   return (
-    <div 
-      ref={canvasRef}
-      className="relative w-full h-screen overflow-hidden bg-white selection:bg-yellow-200/50 pt-14"
-      style={{ backgroundImage: `url(${textureImage})`, backgroundSize: 'cover', cursor: cursorStyle }}
-      onClick={handleCanvasClick}
-      onWheel={handleWheel}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      data-testid="board-canvas"
-    >
-      <div 
-        className="absolute inset-0 origin-top-left"
-        style={{ 
-          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-          willChange: 'transform'
-        }}
-      >
-        <div className="absolute inset-0 pointer-events-none opacity-5" style={{ backgroundSize: '40px 40px', backgroundImage: 'radial-gradient(circle, #000 1px, transparent 1px)', width: '5000px', height: '5000px' }} />
-
-        <LineCanvas 
-          lines={boardData.lines}
-          onAddLine={handleAddLine}
-          onUpdateLine={(id, updates) => updateLineMutation.mutate({ id, updates })}
-          onDeleteLine={(id) => deleteLineMutation.mutate(id)}
-          isLineMode={currentTool === 'line' && !isPanning && !isSpacePressed}
-          currentColor="#000000"
-          currentThickness={3}
-          selectedLineId={selectedLineId}
-          onSelectLine={(id) => { clearSelection(); setSelectedLineId(id); }}
-          zoom={zoom}
-          pan={pan}
-        />
-
-        <DrawingCanvas 
-          drawings={boardData.drawings}
-          onAddDrawing={handleAddDrawing}
-          isDrawingMode={currentTool === 'pen' && !isPanning && !isSpacePressed}
-          currentColor="#000000"
-          currentThickness={3}
-          zoom={zoom}
-          pan={pan}
-        />
-
-        {boardData.stickyNotes.map((note) => (
-          <StickyNote
-            key={note.id}
-            note={note}
-            onUpdate={(id, updates) => updateNoteMutation.mutate({ id, updates })}
-            onDelete={(id) => deleteNoteMutation.mutate(id)}
-            isSelected={selectedNoteId === note.id}
-            onSelect={() => { if (currentTool === 'cursor' && !isPanning && !isSpacePressed) { clearSelection(); setSelectedNoteId(note.id); }}}
-            zoom={zoom}
-          />
-        ))}
-
-        {boardData.textLabels.map((label) => (
-          <TextLabel
-            key={label.id}
-            label={label}
-            onUpdate={(id, updates) => updateTextLabelMutation.mutate({ id, updates })}
-            onDelete={(id) => deleteTextLabelMutation.mutate(id)}
-            isSelected={selectedLabelId === label.id}
-            onSelect={() => { if (currentTool === 'cursor' && !isPanning && !isSpacePressed) { clearSelection(); setSelectedLabelId(label.id); }}}
-            zoom={zoom}
-          />
-        ))}
-
-        {boardData.images.map((image) => (
-          <BoardImage
-            key={image.id}
-            image={image}
-            onUpdate={(id, updates) => updateBoardImageMutation.mutate({ id, updates })}
-            onDelete={(id) => deleteBoardImageMutation.mutate(id)}
-            isSelected={selectedImageId === image.id}
-            onSelect={() => { if (currentTool === 'cursor' && !isPanning && !isSpacePressed) { clearSelection(); setSelectedImageId(image.id); }}}
-            zoom={zoom}
-          />
-        ))}
-      </div>
-
-      <Toolbar
-        currentTool={currentTool}
-        onToolChange={setCurrentTool}
-        onAddNote={handleAddNote}
-        onClearBoard={handleClear}
-        onSave={handleSave}
-        onLoadPreset={handleLoadPreset}
-        onDeleteSelected={handleDeleteSelected}
-        hasSelection={hasSelection}
-        onUploadImage={handleUploadImage}
-      />
-
-      <ZoomControls
-        zoom={zoom}
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        onResetZoom={handleResetZoom}
-      />
-      
-      {boardData.stickyNotes.length === 0 && boardData.drawings.length === 0 && boardData.textLabels.length === 0 && boardData.lines.length === 0 && boardData.images.length === 0 && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none opacity-20" style={{ transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}>
-          <h1 className="text-6xl font-marker mb-4 transform -rotate-2">MarkerMind</h1>
-          <p className="text-2xl font-hand">Use the toolbar above to start creating!</p>
+    <>
+      {/* Navigation Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 h-14 border-b bg-white/95 dark:bg-gray-900/95 backdrop-blur shadow-sm">
+        <div className="container mx-auto px-4 h-full flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleGoToDashboard}
+              className="gap-2"
+            >
+              <Home className="w-4 h-4" />
+              Dashboard
+            </Button>
+            {boardData && (
+              <>
+                <div className="h-6 w-px bg-gray-300 dark:bg-gray-600" />
+                <h1 className="text-lg font-semibold truncate max-w-md">
+                  {boardData?.board?.boardName || 'Untitled Board'}
+                </h1>
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <User className="w-4 h-4" />
+                  <span className="hidden sm:inline">{user?.username}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium">{user?.username}</p>
+                    <p className="text-xs text-muted-foreground">{user?.email}</p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem disabled>
+                  <Settings className="w-4 h-4 mr-2" />
+                  Settings
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
-      )}
-    </div>
+      </header>
+
+      {/* Board Canvas */}
+      <div
+        ref={canvasRef}
+        className="relative w-full h-screen overflow-hidden bg-white selection:bg-yellow-200/50 pt-28"
+        style={{ backgroundImage: `url(${textureImage})`, backgroundSize: 'cover', cursor: cursorStyle }}
+        onClick={handleCanvasClick}
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        data-testid="board-canvas"
+      >
+        <div
+          className="absolute inset-0 origin-top-left"
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            willChange: 'transform'
+          }}
+        >
+          <div className="absolute inset-0 pointer-events-none opacity-5" style={{ backgroundSize: '40px 40px', backgroundImage: 'radial-gradient(circle, #000 1px, transparent 1px)', width: '5000px', height: '5000px' }} />
+
+          <LineCanvas
+            lines={boardData.lines}
+            onAddLine={handleCreateLine}
+            onUpdateLine={(id, updates) => handleUpdateLine(id, updates)}
+            onDeleteLine={(id) => handleDeleteLine(id)}
+            isLineMode={currentTool === 'line' && !isPanning && !isSpacePressed}
+            currentColor={toolSettings.lineColor}
+            currentThickness={toolSettings.lineThickness}
+            selectedLineId={selectedLineId}
+            onSelectLine={(id) => { clearSelection(); setSelectedLineId(id); }}
+            zoom={zoom}
+            pan={pan}
+          />
+
+          <DrawingCanvas
+            drawings={boardData.drawings}
+            onAddDrawing={handleAddDrawingLocal}
+            isDrawingMode={currentTool === 'pen' && !isPanning && !isSpacePressed}
+            currentColor={toolSettings.penColor}
+            currentThickness={toolSettings.penThickness}
+            zoom={zoom}
+            pan={pan}
+          />
+
+          {boardData.stickyNotes.map((note) => (
+            <StickyNote
+              key={note.id}
+              note={note}
+              onUpdate={(id, updates) => handleUpdateNote(id, updates)}
+              onDelete={(id) => handleDeleteNote(id)}
+              isSelected={selectedNoteId === note.id}
+              onSelect={() => { if (currentTool === 'cursor' && !isPanning && !isSpacePressed) { clearSelection(); setSelectedNoteId(note.id); } }}
+              zoom={zoom}
+            />
+          ))}
+
+          {boardData.textLabels.map((label) => (
+            <TextLabel
+              key={label.id}
+              label={label}
+              onUpdate={(id, updates) => handleUpdateTextLabel(id, updates)}
+              onDelete={(id) => handleDeleteTextLabel(id)}
+              isSelected={selectedLabelId === label.id}
+              onSelect={() => { if (currentTool === 'cursor' && !isPanning && !isSpacePressed) { clearSelection(); setSelectedLabelId(label.id); } }}
+              zoom={zoom}
+            />
+          ))}
+
+          {boardData.images.map((image) => (
+            <BoardImage
+              key={image.id}
+              image={image}
+              onUpdate={(id, updates) => handleUpdateBoardImage(id, updates)}
+              onDelete={(id) => handleDeleteBoardImage(id)}
+              isSelected={selectedImageId === image.id}
+              onSelect={() => { if (currentTool === 'cursor' && !isPanning && !isSpacePressed) { clearSelection(); setSelectedImageId(image.id); } }}
+              zoom={zoom}
+            />
+          ))}
+        </div>
+
+        <Toolbar
+          currentTool={currentTool}
+          onToolChange={setCurrentTool}
+          onAddNote={handleAddNote}
+          onClearBoard={() => setClearDialogOpen(true)}
+          onSave={handleSave}
+          onLoadPreset={handleLoadPreset}
+          onDeleteSelected={handleDeleteSelected}
+          hasSelection={hasSelection}
+          onUploadImage={handleUploadImage}
+          toolSettings={toolSettings}
+          onToolSettingsChange={(updates) => setToolSettings(prev => ({ ...prev, ...updates }))}
+        />
+
+        <AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Clear Board?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will remove all content from your workspace. This change is local until you save.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-red-600 hover:bg-red-700 text-white"
+                onClick={handleClearBoard}
+              >
+                Clear Board
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <ZoomControls
+          zoom={zoom}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onResetZoom={handleResetZoom}
+        />
+
+        {boardData.stickyNotes.length === 0 && boardData.drawings.length === 0 && boardData.textLabels.length === 0 && boardData.lines.length === 0 && boardData.images.length === 0 && (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none opacity-20" style={{ transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}>
+            <h1 className="text-6xl font-marker mb-4 transform -rotate-2">MarkerMind</h1>
+            <p className="text-2xl font-hand">Use the toolbar above to start creating!</p>
+          </div>
+        )}
+      </div>
+    </>
   );
 }

@@ -3,9 +3,19 @@ import { pgTable, text, varchar, jsonb, timestamp, integer } from "drizzle-orm/p
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  username: varchar("username", { length: 50 }).notNull().unique(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  password: varchar("password", { length: 255 }).notNull(), // bcrypt hash
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 export const boards = pgTable("boards", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   boardName: text("board_name").notNull(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -78,8 +88,19 @@ export const boardImages = pgTable("board_images", {
 });
 
 // Insert Schemas
+export const insertUserSchema = createInsertSchema(users, {
+  username: z.string().min(3).max(50),
+  email: z.string().email(),
+  password: z.string().min(8),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertBoardSchema = createInsertSchema(boards).omit({
   id: true,
+  userId: true,
   createdAt: true,
   updatedAt: true,
 });
@@ -113,6 +134,7 @@ export const insertBoardImageSchema = createInsertSchema(boardImages).omit({
 });
 
 // Update schemas
+export const updateUserSchema = insertUserSchema.partial();
 export const updateBoardSchema = insertBoardSchema.partial();
 export const updateStickyNoteSchema = insertStickyNoteSchema.omit({ boardId: true }).partial();
 export const updateTextLabelSchema = insertTextLabelSchema.omit({ boardId: true }).partial();
@@ -120,6 +142,9 @@ export const updateLineSchema = insertLineSchema.omit({ boardId: true }).partial
 export const updateBoardImageSchema = insertBoardImageSchema.omit({ boardId: true }).partial();
 
 // Types
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = typeof users.$inferSelect;
+
 export type InsertBoard = z.infer<typeof insertBoardSchema>;
 export type Board = typeof boards.$inferSelect;
 

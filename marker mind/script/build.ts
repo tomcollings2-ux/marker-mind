@@ -26,8 +26,6 @@ const allowlist = [
   "pg",
   "stripe",
   "uuid",
-  "ws",
-  "xlsx",
   "zod",
   "zod-validation-error",
 ];

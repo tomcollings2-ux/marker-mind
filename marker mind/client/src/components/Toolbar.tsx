@@ -61,10 +61,10 @@ const colorOptions = ['#000000', '#333333', '#666666', '#ef4444', '#f97316', '#e
 const thicknessOptions = [1, 2, 3, 5, 8, 12];
 const textSizeOptions = [14, 18, 24, 32, 48, 64];
 
-export function Toolbar({ 
-  currentTool, 
-  onToolChange, 
-  onAddNote, 
+export function Toolbar({
+  currentTool,
+  onToolChange,
+  onAddNote,
   onClearBoard,
   onSave,
   onLoadPreset,
@@ -87,14 +87,14 @@ export function Toolbar({
     input.click();
   };
   const isActive = (tool: Tool) => currentTool === tool;
-  
+
   return (
-    <div className="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm z-50 px-4 py-2">
+    <div className="fixed top-14 left-0 right-0 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm z-40 px-4 py-2">
       <div className="flex items-center justify-between max-w-screen-2xl mx-auto">
-        
+
         {/* Left: Tools */}
         <div className="flex items-center gap-4">
-          
+
           {/* Tools */}
           <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
             <Tooltip>
@@ -113,12 +113,12 @@ export function Toolbar({
             </Tooltip>
 
             {/* Pen Tool with Dropdown */}
-            <DropdownMenu>
+            <DropdownMenu onOpenChange={(open) => { if (open) onToolChange('pen'); }}>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={(e) => { e.preventDefault(); onToolChange('pen'); }}
+                  onClick={() => onToolChange('pen')}
                   className={cn("rounded-md h-8 w-8 relative", isActive('pen') && "bg-white shadow-sm")}
                   data-testid="tool-pen"
                 >
@@ -160,12 +160,12 @@ export function Toolbar({
             </DropdownMenu>
 
             {/* Line Tool with Dropdown */}
-            <DropdownMenu>
+            <DropdownMenu onOpenChange={(open) => { if (open) onToolChange('line'); }}>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={(e) => { e.preventDefault(); onToolChange('line'); }}
+                  onClick={() => onToolChange('line')}
                   className={cn("rounded-md h-8 w-8 relative", isActive('line') && "bg-white shadow-sm")}
                   data-testid="tool-line"
                 >
@@ -207,12 +207,12 @@ export function Toolbar({
             </DropdownMenu>
 
             {/* Text Tool with Dropdown */}
-            <DropdownMenu>
+            <DropdownMenu onOpenChange={(open) => { if (open) onToolChange('text'); }}>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={(e) => { e.preventDefault(); onToolChange('text'); }}
+                  onClick={() => onToolChange('text')}
                   className={cn("rounded-md h-8 w-8 relative", isActive('text') && "bg-white shadow-sm")}
                   data-testid="tool-text"
                 >
@@ -300,15 +300,15 @@ export function Toolbar({
                 Custom Color
               </DropdownMenuLabel>
               <div className="flex gap-2 items-center px-1">
-                <input 
-                  type="color" 
+                <input
+                  type="color"
                   id="custom-note-color"
                   defaultValue="#f5e6ab"
                   className="w-10 h-8 rounded cursor-pointer border border-gray-300"
                   data-testid="custom-color-picker"
                 />
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   variant="secondary"
                   className="flex-1 text-xs"
                   onClick={(e) => {
@@ -352,7 +352,7 @@ export function Toolbar({
               <DropdownMenuLabel>Quick Start Templates</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {presets.map((preset) => (
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   key={preset.id}
                   onClick={() => onLoadPreset(preset.id)}
                   className="gap-3 cursor-pointer py-2"
@@ -374,10 +374,10 @@ export function Toolbar({
           {hasSelection && onDeleteSelected && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   size="sm"
-                  onClick={onDeleteSelected} 
+                  onClick={onDeleteSelected}
                   className="text-red-500 hover:bg-red-50 hover:text-red-600 gap-1"
                   data-testid="delete-selected"
                 >

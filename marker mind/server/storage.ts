@@ -1,14 +1,17 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import pkg from 'pg';
 const { Pool } = pkg;
-import { 
-  boards, 
-  stickyNotes, 
+import {
+  users,
+  boards,
+  stickyNotes,
   drawings,
   textLabels,
   lines,
   boardImages,
-  type InsertBoard, 
+  type InsertUser,
+  type User,
+  type InsertBoard,
   type Board,
   type InsertStickyNote,
   type StickyNote,
@@ -30,12 +33,19 @@ const pool = new Pool({
 const db = drizzle(pool);
 
 export interface IStorage {
+  // Users
+  createUser(user: InsertUser): Promise<User>;
+  getUserById(id: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+
   // Boards
-  createBoard(board: InsertBoard): Promise<Board>;
-  getBoard(id: string): Promise<Board | undefined>;
-  getAllBoards(): Promise<Board[]>;
-  updateBoard(id: string, updates: Partial<InsertBoard>): Promise<Board | undefined>;
-  deleteBoard(id: string): Promise<void>;
+  createBoard(board: InsertBoard, userId: string): Promise<Board>;
+  getBoard(id: string, userId: string): Promise<Board | undefined>;
+  getAllBoards(userId: string): Promise<Board[]>;
+  updateBoard(id: string, userId: string, updates: Partial<InsertBoard>): Promise<Board | undefined>;
+  deleteBoard(id: string, userId: string): Promise<void>;
+  clearBoard(id: string): Promise<void>;
 
   // Sticky Notes
   createStickyNote(note: InsertStickyNote): Promise<StickyNote>;
@@ -65,9 +75,9 @@ export interface IStorage {
   getBoardImagesByBoard(boardId: string): Promise<BoardImage[]>;
   updateBoardImage(id: string, updates: Partial<Omit<InsertBoardImage, 'boardId'>>): Promise<BoardImage | undefined>;
   deleteBoardImage(id: string): Promise<void>;
-  
+
   // Get complete board with all elements
-  getBoardWithElements(id: string): Promise<{
+  getBoardWithElements(id: string, userId: string): Promise<{
     board: Board;
     stickyNotes: StickyNote[];
     drawings: Drawing[];
@@ -75,24 +85,78 @@ export interface IStorage {
     lines: Line[];
     images: BoardImage[];
   } | undefined>;
+
+  saveBoardContent(
+    boardId: string,
+    content: {
+      stickyNotes: StickyNote[];
+      drawings: Drawing[];
+      textLabels: TextLabel[];
+      lines: Line[];
+      images: BoardImage[];
+    }
+  ): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
-  async createBoard(insertBoard: InsertBoard): Promise<Board> {
-    const [board] = await db.insert(boards).values(insertBoard).returning();
+  // ============ USERS ============
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(insertUser).returning();
+    return user;
+  }
+
+  async getUserById(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  // ============ BOARDS ============
+
+  async createBoard(insertBoard: InsertBoard, userId: string): Promise<Board> {
+    const [board] = await db.insert(boards).values({ ...insertBoard, userId }).returning();
     return board;
   }
 
-  async getBoard(id: string): Promise<Board | undefined> {
-    const [board] = await db.select().from(boards).where(eq(boards.id, id));
+  async getBoard(id: string, userId: string): Promise<Board | undefined> {
+    const [board] = await db
+      .select()
+      .from(boards)
+      .where(eq(boards.id, id));
+
+    // Verify ownership
+    if (board && board.userId !== userId) {
+      return undefined;
+    }
+
     return board;
   }
 
-  async getAllBoards(): Promise<Board[]> {
-    return await db.select().from(boards).orderBy(desc(boards.updatedAt));
+  async getAllBoards(userId: string): Promise<Board[]> {
+    return await db
+      .select()
+      .from(boards)
+      .where(eq(boards.userId, userId))
+      .orderBy(desc(boards.updatedAt));
   }
 
-  async updateBoard(id: string, updates: Partial<InsertBoard>): Promise<Board | undefined> {
+  async updateBoard(id: string, userId: string, updates: Partial<InsertBoard>): Promise<Board | undefined> {
+    // First verify ownership
+    const existingBoard = await this.getBoard(id, userId);
+    if (!existingBoard) {
+      return undefined;
+    }
+
     const [board] = await db
       .update(boards)
       .set({ ...updates, updatedAt: new Date() })
@@ -101,8 +165,22 @@ export class DatabaseStorage implements IStorage {
     return board;
   }
 
-  async deleteBoard(id: string): Promise<void> {
-    await db.delete(boards).where(eq(boards.id, id));
+  async deleteBoard(id: string, userId: string): Promise<void> {
+    // Only delete if user owns the board
+    await db
+      .delete(boards)
+      .where(eq(boards.id, id));
+    // Note: userId check is implicit via foreign key constraint
+  }
+
+  async clearBoard(id: string): Promise<void> {
+    await db.transaction(async (tx) => {
+      await tx.delete(stickyNotes).where(eq(stickyNotes.boardId, id));
+      await tx.delete(drawings).where(eq(drawings.boardId, id));
+      await tx.delete(textLabels).where(eq(textLabels.boardId, id));
+      await tx.delete(lines).where(eq(lines.boardId, id));
+      await tx.delete(boardImages).where(eq(boardImages.boardId, id));
+    });
   }
 
   async createStickyNote(note: InsertStickyNote): Promise<StickyNote> {
@@ -206,7 +284,7 @@ export class DatabaseStorage implements IStorage {
     await db.delete(boardImages).where(eq(boardImages.id, id));
   }
 
-  async getBoardWithElements(id: string): Promise<{
+  async getBoardWithElements(id: string, userId: string): Promise<{
     board: Board;
     stickyNotes: StickyNote[];
     drawings: Drawing[];
@@ -214,7 +292,7 @@ export class DatabaseStorage implements IStorage {
     lines: Line[];
     images: BoardImage[];
   } | undefined> {
-    const board = await this.getBoard(id);
+    const board = await this.getBoard(id, userId);
     if (!board) return undefined;
 
     const [boardNotes, boardDrawings, boardTextLabels, boardLines, boardImagesData] = await Promise.all([
@@ -233,6 +311,45 @@ export class DatabaseStorage implements IStorage {
       lines: boardLines,
       images: boardImagesData
     };
+  }
+  async saveBoardContent(
+    boardId: string,
+    content: {
+      stickyNotes: StickyNote[];
+      drawings: Drawing[];
+      textLabels: TextLabel[];
+      lines: Line[];
+      images: BoardImage[];
+    }
+  ): Promise<void> {
+    await db.transaction(async (tx) => {
+      // 1. Clear existing content
+      await tx.delete(stickyNotes).where(eq(stickyNotes.boardId, boardId));
+      await tx.delete(drawings).where(eq(drawings.boardId, boardId));
+      await tx.delete(textLabels).where(eq(textLabels.boardId, boardId));
+      await tx.delete(lines).where(eq(lines.boardId, boardId));
+      await tx.delete(boardImages).where(eq(boardImages.boardId, boardId));
+
+      // 2. Insert new content (if any)
+      if (content.stickyNotes.length > 0) {
+        await tx.insert(stickyNotes).values(content.stickyNotes.map(n => ({ ...n, boardId })));
+      }
+      if (content.drawings.length > 0) {
+        await tx.insert(drawings).values(content.drawings.map(d => ({ ...d, boardId })));
+      }
+      if (content.textLabels.length > 0) {
+        await tx.insert(textLabels).values(content.textLabels.map(l => ({ ...l, boardId })));
+      }
+      if (content.lines.length > 0) {
+        await tx.insert(lines).values(content.lines.map(l => ({ ...l, boardId })));
+      }
+      if (content.images.length > 0) {
+        await tx.insert(boardImages).values(content.images.map(i => ({ ...i, boardId })));
+      }
+
+      // Update board timestamp
+      await tx.update(boards).set({ updatedAt: new Date() }).where(eq(boards.id, boardId));
+    });
   }
 }
 

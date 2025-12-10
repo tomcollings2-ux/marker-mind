@@ -1,6 +1,7 @@
 import type { Board, StickyNote, Drawing, TextLabel, Line, BoardImage } from '@shared/schema';
+import { mockApi } from './mock-api';
 
-const API_BASE = '/api';
+const USE_MOCK = false; // Set to false when backend is available
 
 export interface BoardWithElements {
   board: Board;
@@ -14,7 +15,18 @@ export interface BoardWithElements {
 // ============ BOARDS ============
 
 export async function createBoard(boardName: string): Promise<Board> {
-  const res = await fetch(`${API_BASE}/boards`, {
+  if (USE_MOCK) {
+    const mockBoard = await mockApi.createBoard(boardName);
+    return {
+      id: mockBoard.id,
+      boardName: mockBoard.name,
+      userId: mockBoard.userId,
+      createdAt: new Date(mockBoard.createdAt),
+      updatedAt: new Date(mockBoard.updatedAt)
+    };
+  }
+
+  const res = await fetch(`/api/boards`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ boardName })
@@ -23,39 +35,66 @@ export async function createBoard(boardName: string): Promise<Board> {
   return res.json();
 }
 
-export async function getAllBoards(): Promise<Board[]> {
-  const res = await fetch(`${API_BASE}/boards`);
-  if (!res.ok) throw new Error('Failed to fetch boards');
-  return res.json();
-}
-
 export async function getBoard(id: string): Promise<BoardWithElements> {
-  const res = await fetch(`${API_BASE}/boards/${id}`);
+  if (USE_MOCK) {
+    const board = await mockApi.getBoard(id);
+    return {
+      board: {
+        id: board.id,
+        boardName: board.name,
+        userId: board.userId,
+        createdAt: new Date(board.createdAt),
+        updatedAt: new Date(board.updatedAt)
+      },
+      stickyNotes: board.stickyNotes,
+      drawings: board.drawings,
+      textLabels: board.textLabels,
+      lines: board.lines,
+      images: board.images
+    };
+  }
+
+  const res = await fetch(`/api/boards/${id}`);
   if (!res.ok) throw new Error('Failed to fetch board');
   return res.json();
 }
 
-export async function updateBoard(id: string, boardName: string): Promise<Board> {
-  const res = await fetch(`${API_BASE}/boards/${id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ boardName })
+export async function clearBoard(id: string): Promise<void> {
+  if (USE_MOCK) {
+    const board = await mockApi.getBoard(id);
+    if (board) {
+      board.stickyNotes = [];
+      board.drawings = [];
+      board.textLabels = [];
+      board.lines = [];
+      board.images = [];
+    }
+    return;
+  }
+
+  const res = await fetch(`/api/boards/${id}/clear`, {
+    method: 'POST'
   });
-  if (!res.ok) throw new Error('Failed to update board');
-  return res.json();
+  if (!res.ok) throw new Error('Failed to clear board');
 }
 
-export async function deleteBoard(id: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/boards/${id}`, {
-    method: 'DELETE'
+export async function saveBoard(id: string, content: any): Promise<void> {
+  if (USE_MOCK) return; // Mock automatically handled by local obj changes? Actually mock behavior is weird here, but let's focus on backend.
+
+  const res = await fetch(`/api/boards/${id}/save`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(content)
   });
-  if (!res.ok) throw new Error('Failed to delete board');
+  if (!res.ok) throw new Error('Failed to save board');
 }
 
 // ============ STICKY NOTES ============
 
-export async function createStickyNote(data: Omit<StickyNote, 'id' | 'createdAt' | 'updatedAt'>): Promise<StickyNote> {
-  const res = await fetch(`${API_BASE}/sticky-notes`, {
+export async function createStickyNote(data: any): Promise<StickyNote> {
+  if (USE_MOCK) return mockApi.createStickyNote(data);
+
+  const res = await fetch(`/api/sticky-notes`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -64,8 +103,10 @@ export async function createStickyNote(data: Omit<StickyNote, 'id' | 'createdAt'
   return res.json();
 }
 
-export async function updateStickyNote(id: string, data: Partial<Omit<StickyNote, 'id' | 'boardId' | 'createdAt' | 'updatedAt'>>): Promise<StickyNote> {
-  const res = await fetch(`${API_BASE}/sticky-notes/${id}`, {
+export async function updateStickyNote(id: string, data: any): Promise<StickyNote> {
+  if (USE_MOCK) return mockApi.updateStickyNote(id, data);
+
+  const res = await fetch(`/api/sticky-notes/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -75,7 +116,9 @@ export async function updateStickyNote(id: string, data: Partial<Omit<StickyNote
 }
 
 export async function deleteStickyNote(id: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/sticky-notes/${id}`, {
+  if (USE_MOCK) return mockApi.deleteStickyNote(id);
+
+  const res = await fetch(`/api/sticky-notes/${id}`, {
     method: 'DELETE'
   });
   if (!res.ok) throw new Error('Failed to delete sticky note');
@@ -83,8 +126,10 @@ export async function deleteStickyNote(id: string): Promise<void> {
 
 // ============ DRAWINGS ============
 
-export async function createDrawing(data: Omit<Drawing, 'id' | 'createdAt'>): Promise<Drawing> {
-  const res = await fetch(`${API_BASE}/drawings`, {
+export async function createDrawing(data: any): Promise<Drawing> {
+  if (USE_MOCK) return mockApi.createDrawing(data);
+
+  const res = await fetch(`/api/drawings`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -94,7 +139,9 @@ export async function createDrawing(data: Omit<Drawing, 'id' | 'createdAt'>): Pr
 }
 
 export async function deleteDrawing(id: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/drawings/${id}`, {
+  if (USE_MOCK) return mockApi.deleteDrawing(id);
+
+  const res = await fetch(`/api/drawings/${id}`, {
     method: 'DELETE'
   });
   if (!res.ok) throw new Error('Failed to delete drawing');
@@ -102,8 +149,10 @@ export async function deleteDrawing(id: string): Promise<void> {
 
 // ============ TEXT LABELS ============
 
-export async function createTextLabel(data: Omit<TextLabel, 'id' | 'createdAt' | 'updatedAt'>): Promise<TextLabel> {
-  const res = await fetch(`${API_BASE}/text-labels`, {
+export async function createTextLabel(data: any): Promise<TextLabel> {
+  if (USE_MOCK) return mockApi.createTextLabel(data);
+
+  const res = await fetch(`/api/text-labels`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -112,8 +161,10 @@ export async function createTextLabel(data: Omit<TextLabel, 'id' | 'createdAt' |
   return res.json();
 }
 
-export async function updateTextLabel(id: string, data: Partial<Omit<TextLabel, 'id' | 'boardId' | 'createdAt' | 'updatedAt'>>): Promise<TextLabel> {
-  const res = await fetch(`${API_BASE}/text-labels/${id}`, {
+export async function updateTextLabel(id: string, data: any): Promise<TextLabel> {
+  if (USE_MOCK) return mockApi.updateTextLabel(id, data);
+
+  const res = await fetch(`/api/text-labels/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -123,7 +174,9 @@ export async function updateTextLabel(id: string, data: Partial<Omit<TextLabel, 
 }
 
 export async function deleteTextLabel(id: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/text-labels/${id}`, {
+  if (USE_MOCK) return mockApi.deleteTextLabel(id);
+
+  const res = await fetch(`/api/text-labels/${id}`, {
     method: 'DELETE'
   });
   if (!res.ok) throw new Error('Failed to delete text label');
@@ -131,8 +184,10 @@ export async function deleteTextLabel(id: string): Promise<void> {
 
 // ============ LINES ============
 
-export async function createLine(data: Omit<Line, 'id' | 'createdAt'>): Promise<Line> {
-  const res = await fetch(`${API_BASE}/lines`, {
+export async function createLine(data: any): Promise<Line> {
+  if (USE_MOCK) return mockApi.createLine(data);
+
+  const res = await fetch(`/api/lines`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -141,8 +196,10 @@ export async function createLine(data: Omit<Line, 'id' | 'createdAt'>): Promise<
   return res.json();
 }
 
-export async function updateLine(id: string, data: Partial<Omit<Line, 'id' | 'boardId' | 'createdAt'>>): Promise<Line> {
-  const res = await fetch(`${API_BASE}/lines/${id}`, {
+export async function updateLine(id: string, data: any): Promise<Line> {
+  if (USE_MOCK) return mockApi.updateLine(id, data);
+
+  const res = await fetch(`/api/lines/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -152,7 +209,9 @@ export async function updateLine(id: string, data: Partial<Omit<Line, 'id' | 'bo
 }
 
 export async function deleteLine(id: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/lines/${id}`, {
+  if (USE_MOCK) return mockApi.deleteLine(id);
+
+  const res = await fetch(`/api/lines/${id}`, {
     method: 'DELETE'
   });
   if (!res.ok) throw new Error('Failed to delete line');
@@ -160,8 +219,10 @@ export async function deleteLine(id: string): Promise<void> {
 
 // ============ BOARD IMAGES ============
 
-export async function createBoardImage(data: Omit<BoardImage, 'id' | 'createdAt' | 'updatedAt'>): Promise<BoardImage> {
-  const res = await fetch(`${API_BASE}/board-images`, {
+export async function createBoardImage(data: any): Promise<BoardImage> {
+  if (USE_MOCK) return mockApi.createBoardImage(data);
+
+  const res = await fetch(`/api/board-images`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -170,8 +231,10 @@ export async function createBoardImage(data: Omit<BoardImage, 'id' | 'createdAt'
   return res.json();
 }
 
-export async function updateBoardImage(id: string, data: Partial<Omit<BoardImage, 'id' | 'boardId' | 'createdAt' | 'updatedAt'>>): Promise<BoardImage> {
-  const res = await fetch(`${API_BASE}/board-images/${id}`, {
+export async function updateBoardImage(id: string, data: any): Promise<BoardImage> {
+  if (USE_MOCK) return mockApi.updateBoardImage(id, data);
+
+  const res = await fetch(`/api/board-images/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -181,7 +244,9 @@ export async function updateBoardImage(id: string, data: Partial<Omit<BoardImage
 }
 
 export async function deleteBoardImage(id: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/board-images/${id}`, {
+  if (USE_MOCK) return mockApi.deleteBoardImage(id);
+
+  const res = await fetch(`/api/board-images/${id}`, {
     method: 'DELETE'
   });
   if (!res.ok) throw new Error('Failed to delete board image');
