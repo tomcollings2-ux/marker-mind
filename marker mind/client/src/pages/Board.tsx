@@ -786,6 +786,20 @@ export default function Board() {
       <header className="fixed top-0 left-0 right-0 z-50 h-14 border-b bg-white/95 dark:bg-gray-900/95 backdrop-blur shadow-sm">
         <div className="container mx-auto px-4 h-full flex items-center justify-between">
           <div className="flex items-center gap-4">
+            {boardData && (
+              <>
+                <img
+                  src="/logo.jpg"
+                  alt="MarkerMind Logo"
+                  className="w-10 h-10 object-contain rounded-full"
+                />
+                <h1 className="text-lg font-semibold truncate max-w-md">
+                  {boardData?.board?.boardName || 'Untitled Board'}
+                </h1>
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
             <Button
               variant="ghost"
               size="sm"
@@ -795,16 +809,6 @@ export default function Board() {
               <Home className="w-4 h-4" />
               Dashboard
             </Button>
-            {boardData && (
-              <>
-                <div className="h-6 w-px bg-gray-300 dark:bg-gray-600" />
-                <h1 className="text-lg font-semibold truncate max-w-md">
-                  {boardData?.board?.boardName || 'Untitled Board'}
-                </h1>
-              </>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="gap-2">
@@ -968,11 +972,6 @@ export default function Board() {
         {boardData.stickyNotes.length === 0 && boardData.drawings.length === 0 && boardData.textLabels.length === 0 && boardData.lines.length === 0 && boardData.images.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="text-center opacity-20">
-              <img
-                src="/logo.jpg"
-                alt="MarkerMind Logo"
-                className="w-48 h-48 mx-auto mb-6 object-contain"
-              />
               <h1 className="text-6xl font-marker mb-4 transform -rotate-2">MarkerMind</h1>
               <p className="text-2xl font-hand">Use the toolbar above to start creating!</p>
             </div>
