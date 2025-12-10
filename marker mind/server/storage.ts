@@ -353,7 +353,19 @@ export class DatabaseStorage implements IStorage {
           await tx.insert(textLabels).values(content.textLabels.map(clean));
         }
         if (content.lines.length > 0) {
-          await tx.insert(lines).values(content.lines.map(clean));
+          const cleanLines = content.lines.map(l => ({
+            id: l.id,
+            boardId,
+            x1: Math.floor(l.x1),
+            y1: Math.floor(l.y1),
+            x2: Math.floor(l.x2),
+            y2: Math.floor(l.y2),
+            color: l.color || '#000000',
+            thickness: l.thickness || 3,
+            lineStyle: l.lineStyle || 'solid',
+            createdAt: typeof l.createdAt === 'string' ? new Date(l.createdAt) : l.createdAt || new Date()
+          }));
+          await tx.insert(lines).values(cleanLines);
         }
         if (content.images.length > 0) {
           await tx.insert(boardImages).values(content.images.map(clean));
