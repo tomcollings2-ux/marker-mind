@@ -966,9 +966,16 @@ export default function Board() {
         />
 
         {boardData.stickyNotes.length === 0 && boardData.drawings.length === 0 && boardData.textLabels.length === 0 && boardData.lines.length === 0 && boardData.images.length === 0 && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none opacity-20" style={{ transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}>
-            <h1 className="text-6xl font-marker mb-4 transform -rotate-2">MarkerMind</h1>
-            <p className="text-2xl font-hand">Use the toolbar above to start creating!</p>
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="text-center opacity-20">
+              <img
+                src="/logo.jpg"
+                alt="MarkerMind Logo"
+                className="w-48 h-48 mx-auto mb-6 object-contain"
+              />
+              <h1 className="text-6xl font-marker mb-4 transform -rotate-2">MarkerMind</h1>
+              <p className="text-2xl font-hand">Use the toolbar above to start creating!</p>
+            </div>
           </div>
         )}
       </div>
