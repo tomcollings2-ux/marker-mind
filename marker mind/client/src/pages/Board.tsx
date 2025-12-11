@@ -797,15 +797,18 @@ export default function Board() {
             )}
           </div>
           <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleGoToDashboard}
-              className="gap-2"
-            >
-              <Home className="w-4 h-4" />
-              Dashboard
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleGoToDashboard}
+                >
+                  <Home className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Dashboard</TooltipContent>
+            </Tooltip>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="gap-2">
