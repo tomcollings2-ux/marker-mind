@@ -409,11 +409,12 @@ export function Toolbar({
                 disabled={!canUndo}
                 className="gap-1 hover:bg-blue-50 hover:text-blue-600"
                 data-testid="undo"
+                aria-label="Undo last action"
               >
                 <Undo2 className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Undo (Ctrl/Cmd+Z)</TooltipContent>
+            <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
           </Tooltip>
 
           {/* Redo Button */}
@@ -426,11 +427,12 @@ export function Toolbar({
                 disabled={!canRedo}
                 className="gap-1 hover:bg-blue-50 hover:text-blue-600"
                 data-testid="redo"
+                aria-label="Redo last action"
               >
                 <Redo2 className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Redo (Ctrl/Cmd+Shift+Z)</TooltipContent>
+            <TooltipContent>Redo (Ctrl+Y)</TooltipContent>
           </Tooltip>
 
           <Separator orientation="vertical" className="h-6" />

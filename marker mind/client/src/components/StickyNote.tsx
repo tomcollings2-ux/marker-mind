@@ -9,14 +9,24 @@ import { MIN_NOTE_SIZE } from '@/constants';
 
 type NoteColor = 'yellow' | 'pink' | 'blue' | 'green' | 'orange';
 
+/**
+ * Props for the StickyNote component
+ */
 interface StickyNoteProps {
+  /** The sticky note data including position, text, and styling */
   note: StickyNoteType;
+  /** Callback to update note properties */
   onUpdate: (id: string, updates: Partial<StickyNoteType>) => void;
+  /** Callback to delete the note */
   onDelete: (id: string) => void;
+  /** Whether this note is currently selected */
   isSelected?: boolean;
+  /** Callback when note is selected */
   onSelect?: () => void;
+  /** Current zoom level of the board */
   zoom?: number;
-  isNew?: boolean; // Flag for newly created notes
+  /** Flag indicating if this is a newly created note (for auto-focus) */
+  isNew?: boolean;
 }
 
 const colorMap: Record<NoteColor, string> = {
@@ -36,6 +46,10 @@ const fontFamilyMap: Record<string, string> = {
 
 const isCustomColor = (color: string) => color.startsWith('#');
 
+/**
+ * StickyNote component - A draggable, resizable, rotatable sticky note
+ * Supports custom colors, fonts, and inline editing
+ */
 export function StickyNote({ note, onUpdate, onDelete, isSelected, onSelect, zoom = 1, isNew = false }: StickyNoteProps) {
   const controls = useDragControls();
   const [isEditing, setIsEditing] = useState(false);
@@ -270,6 +284,7 @@ export function StickyNote({ note, onUpdate, onDelete, isSelected, onSelect, zoo
               key={c}
               className={cn("w-4 h-4 rounded-full border border-black/10", colorMap[c])}
               onClick={(e) => { e.stopPropagation(); onUpdate(note.id, { color: c }); }}
+              aria-label={`Set color to ${c}`}
               data-testid={`color-${c}-${note.id}`}
             />
           ))}
@@ -280,6 +295,7 @@ export function StickyNote({ note, onUpdate, onDelete, isSelected, onSelect, zoo
           size="icon"
           className="h-8 w-8 rounded-full bg-white shadow-sm border border-gray-200 hover:bg-red-50 hover:text-red-500"
           onClick={(e) => { e.stopPropagation(); onDelete(note.id); }}
+          aria-label="Delete note"
           data-testid={`delete-note-${note.id}`}
         >
           <X className="w-4 h-4" />

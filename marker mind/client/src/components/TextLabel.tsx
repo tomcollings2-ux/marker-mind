@@ -7,13 +7,23 @@ import { Button } from '@/components/ui/button';
 
 export type FontStyle = 'formal' | 'fun' | 'bold' | 'handwritten';
 
+/**
+ * Props for the TextLabel component
+ */
 interface TextLabelProps {
+  /** The text label data including position, text, and styling */
   label: TextLabelType;
+  /** Callback to update label properties */
   onUpdate: (id: string, updates: Partial<TextLabelType>) => void;
+  /** Callback to delete the label */
   onDelete: (id: string) => void;
+  /** Whether this label is currently selected */
   isSelected?: boolean;
+  /** Callback when label is selected */
   onSelect?: () => void;
+  /** Current zoom level of the board */
   zoom?: number;
+  /** Flag indicating if this is a newly created label (for auto-focus) */
   isNew?: boolean; // Flag for newly created labels
 }
 
@@ -31,6 +41,10 @@ const fontWeightMap: Record<FontStyle, number> = {
   handwritten: 400,
 };
 
+/**
+ * TextLabel component - A draggable, rotatable text label
+ * Supports custom colors, fonts, sizes, and inline editing
+ */
 export function TextLabel({ label, onUpdate, onDelete, isSelected, onSelect, zoom = 1, isNew = false }: TextLabelProps) {
   const controls = useDragControls();
   const [isEditing, setIsEditing] = useState(false);

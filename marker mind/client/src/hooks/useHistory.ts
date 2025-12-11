@@ -1,5 +1,26 @@
 import { useState, useCallback } from 'react';
 
+/**
+ * Custom hook for managing undo/redo history
+ * Maintains a stack of board states with configurable maximum size
+ * 
+ * @param maxSize - Maximum number of states to keep in history (default: 20)
+ * @returns Object containing history state and control functions
+ * 
+ * @example
+ * ```tsx
+ * const history = useHistory(20);
+ * 
+ * // Push new state
+ * history.push(currentBoard, previousBoard);
+ * 
+ * // Undo last action
+ * if (history.canUndo) {
+ *   const previousState = history.undo();
+ * }
+ * ```
+ */
+
 export interface HistoryAction {
     type: 'batch' | 'create' | 'update' | 'delete' | 'move';
     elementType?: 'note' | 'label' | 'line' | 'drawing' | 'image';
