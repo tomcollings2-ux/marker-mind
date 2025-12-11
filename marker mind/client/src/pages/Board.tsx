@@ -786,18 +786,24 @@ export default function Board() {
       {/* Navigation Header */}
       <header className="fixed top-0 left-0 right-0 z-50 h-14 border-b bg-white/95 dark:bg-gray-900/95 backdrop-blur shadow-sm">
         <div className="container mx-auto px-4 h-full flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          {/* Left: Branding */}
+          <div className="flex items-center gap-4 flex-1">
             {boardData && (
-              <>
-                <h2 className="text-xl font-bold font-marker text-primary">MarkerMind</h2>
-                <div className="h-6 w-px bg-gray-300 dark:bg-gray-600" />
-                <h1 className="text-lg font-semibold truncate max-w-md">
-                  {boardData?.board?.boardName || 'Untitled Board'}
-                </h1>
-              </>
+              <h2 className="text-xl font-bold font-marker text-primary">MarkerMind</h2>
             )}
           </div>
-          <div className="flex items-center gap-3">
+
+          {/* Center: Board Name */}
+          <div className="flex-1 flex justify-center">
+            {boardData && (
+              <h1 className="text-lg font-semibold truncate max-w-md text-center">
+                {boardData?.board?.boardName || 'Untitled Board'}
+              </h1>
+            )}
+          </div>
+
+          {/* Right: Navigation */}
+          <div className="flex items-center gap-3 flex-1 justify-end">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
