@@ -788,11 +788,8 @@ export default function Board() {
           <div className="flex items-center gap-4">
             {boardData && (
               <>
-                <img
-                  src="/logo.jpg"
-                  alt="MarkerMind Logo"
-                  className="h-20 w-auto object-contain"
-                />
+                <h2 className="text-xl font-bold font-marker text-primary">MarkerMind</h2>
+                <div className="h-6 w-px bg-gray-300 dark:bg-gray-600" />
                 <h1 className="text-lg font-semibold truncate max-w-md">
                   {boardData?.board?.boardName || 'Untitled Board'}
                 </h1>
