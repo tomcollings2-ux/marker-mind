@@ -36,6 +36,7 @@ import { Home, LogOut, User, Settings } from 'lucide-react';
 import textureImage from '@assets/generated_images/subtle_whiteboard_texture.png';
 import { useRoute, useLocation } from 'wouter';
 import { MIN_NOTE_SIZE, DEFAULT_NOTE_WIDTH, DEFAULT_NOTE_HEIGHT, MIN_ZOOM, MAX_ZOOM, MAX_HISTORY_SIZE, AUTO_FOCUS_DELAY_MS } from '@/constants';
+import { RETRY_CONFIG, showErrorToast, getUserFriendlyError } from '@/lib/errorHandling';
 
 type NoteColor = 'yellow' | 'pink' | 'blue' | 'green' | 'orange';
 type Tool = 'cursor' | 'pen' | 'text' | 'line';
@@ -466,24 +467,29 @@ export default function Board() {
     clearSelection();
     setClearDialogOpen(false);
   };
-
+  // Save to server with retry logic
   const saveBoardMutation = useMutation({
     mutationFn: async () => {
       if (!boardId || !localBoard) return;
       await api.saveBoard(boardId, localBoard);
     },
+    retry: RETRY_CONFIG.maxRetries,
+    retryDelay: (attemptIndex) => RETRY_CONFIG.retryDelay(attemptIndex),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['board', boardId] }); // Refresh from server to be sure
       setHasUnsavedChanges(false);
-      toast({ title: "Board Saved", description: "Your changes have been saved to the server." });
+      toast({
+        title: "Board Saved",
+        description: "Your changes have been saved to the server."
+      });
     },
     onError: (error) => {
+      const errorMessage = getUserFriendlyError(error);
       toast({
-        title: "Save Failed",
-        description: "Could not save changes to the server. Please try again.",
-        variant: "destructive"
+        title: errorMessage.title,
+        description: errorMessage.description + " Your changes are still saved locally.",
+        variant: "destructive",
       });
-    }
+    },
   });
 
   const handleSave = () => {
