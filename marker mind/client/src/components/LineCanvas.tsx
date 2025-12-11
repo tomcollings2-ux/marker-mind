@@ -336,7 +336,7 @@ export function LineCanvas({
                   fill="white"
                   stroke="#3b82f6"
                   strokeWidth={2}
-                  className="pointer-events-auto cursor-crosshair hover:scale-125 transition-transform origin-center"
+                  className="pointer-events-auto cursor-crosshair"
                   onPointerDown={(e) => handleEndpointDragStart(e, line, 'endpoint1')}
                 />
 
@@ -348,7 +348,7 @@ export function LineCanvas({
                   fill="white"
                   stroke="#3b82f6"
                   strokeWidth={2}
-                  className="pointer-events-auto cursor-crosshair hover:scale-125 transition-transform origin-center"
+                  className="pointer-events-auto cursor-crosshair"
                   onPointerDown={(e) => handleEndpointDragStart(e, line, 'endpoint2')}
                 />
               </>
