@@ -14,6 +14,7 @@ import { ZoomControls } from '@/components/ZoomControls';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
   DropdownMenu,
   DropdownMenuContent,
