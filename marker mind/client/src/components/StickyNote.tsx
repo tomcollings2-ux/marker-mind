@@ -200,7 +200,6 @@ export function StickyNote({ note, onUpdate, onDelete, isSelected, onSelect, zoo
       drag={!isResizing && !isRotating}
       dragControls={controls}
       dragMomentum={false}
-      dragListener={false}
       initial={{ x: note.x, y: note.y, rotate: note.rotation, scale: 0.8, opacity: 0 }}
       animate={{
         x: note.x,
@@ -248,10 +247,10 @@ export function StickyNote({ note, onUpdate, onDelete, isSelected, onSelect, zoo
         {localText || 'Double click to edit'}
       </div>
 
-      {/* Drag Handle - Large area at top */}
+      {/* Drag Handle - Hidden but kept for compatibility */}
       <div
         onPointerDown={(e) => controls.start(e)}
-        className="absolute -top-3 left-1/2 -translate-x-1/2 w-16 h-6 bg-white/90 rounded-full shadow-md cursor-grab active:cursor-grabbing hover:bg-gray-100 border border-gray-200 flex items-center justify-center transition-all hover:w-20"
+        className="hidden absolute -top-3 left-1/2 -translate-x-1/2 w-16 h-6 bg-white/90 rounded-full shadow-md cursor-grab active:cursor-grabbing hover:bg-gray-100 border border-gray-200 flex items-center justify-center transition-all hover:w-20"
         data-testid={`drag-handle-${note.id}`}
       >
         <GripHorizontal className="w-5 h-5 text-gray-400" />

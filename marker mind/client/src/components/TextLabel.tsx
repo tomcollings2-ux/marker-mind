@@ -135,7 +135,6 @@ export function TextLabel({ label, onUpdate, onDelete, isSelected, onSelect, zoo
       drag={!isRotating}
       dragControls={controls}
       dragMomentum={false}
-      dragListener={false}
       initial={{ x: label.x, y: label.y, rotate: label.rotation || 0, scale: 0.8, opacity: 0 }}
       animate={{
         x: label.x,
@@ -159,10 +158,10 @@ export function TextLabel({ label, onUpdate, onDelete, isSelected, onSelect, zoo
       )}
       data-testid={`text-label-${label.id}`}
     >
-      {/* Large Drag Handle */}
+      {/* Drag Handle - Hidden */}
       <div
         onPointerDown={(e) => controls.start(e)}
-        className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-5 bg-white/90 rounded-full shadow-md cursor-grab active:cursor-grabbing hover:bg-gray-100 border border-gray-200 flex items-center justify-center transition-all hover:w-14"
+        className="hidden absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-5 bg-white/90 rounded-full shadow-md cursor-grab active:cursor-grabbing hover:bg-gray-100 border border-gray-200 flex items-center justify-center transition-all hover:w-14"
       >
         <GripHorizontal className="w-4 h-4 text-gray-400" />
       </div>
