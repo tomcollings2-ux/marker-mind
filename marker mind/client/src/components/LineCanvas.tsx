@@ -26,11 +26,11 @@ function snapAngle(startX: number, startY: number, endX: number, endY: number): 
   const dy = endY - startY;
   const angle = Math.atan2(dy, dx) * (180 / Math.PI);
   const distance = Math.sqrt(dx * dx + dy * dy);
-  
+
   const snapAngles = [0, 45, 90, 135, 180, -45, -90, -135, -180];
   let closestAngle = snapAngles[0];
   let minDiff = Math.abs(angle - snapAngles[0]);
-  
+
   for (const snapAngle of snapAngles) {
     const diff = Math.abs(angle - snapAngle);
     if (diff < minDiff) {
@@ -38,7 +38,7 @@ function snapAngle(startX: number, startY: number, endX: number, endY: number): 
       closestAngle = snapAngle;
     }
   }
-  
+
   if (minDiff < 15) {
     const radians = closestAngle * (Math.PI / 180);
     return {
@@ -46,15 +46,15 @@ function snapAngle(startX: number, startY: number, endX: number, endY: number): 
       y: startY + Math.sin(radians) * distance
     };
   }
-  
+
   return { x: endX, y: endY };
 }
 
 type DragMode = 'none' | 'draw' | 'move' | 'endpoint1' | 'endpoint2';
 
-export function LineCanvas({ 
-  lines, 
-  onAddLine, 
+export function LineCanvas({
+  lines,
+  onAddLine,
   onUpdateLine,
   onDeleteLine,
   isLineMode,
@@ -69,7 +69,7 @@ export function LineCanvas({
   const [startPoint, setStartPoint] = useState<Point | null>(null);
   const [currentEndPoint, setCurrentEndPoint] = useState<Point | null>(null);
   const [dragMode, setDragMode] = useState<DragMode>('none');
-  
+
   const cleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -125,10 +125,10 @@ export function LineCanvas({
   const handlePointerUp = () => {
     if (dragMode === 'draw' && isLineMode && startPoint && currentEndPoint) {
       const distance = Math.sqrt(
-        Math.pow(currentEndPoint.x - startPoint.x, 2) + 
+        Math.pow(currentEndPoint.x - startPoint.x, 2) +
         Math.pow(currentEndPoint.y - startPoint.y, 2)
       );
-      
+
       if (distance > 10) {
         onAddLine({
           x1: Math.round(startPoint.x),
@@ -141,7 +141,7 @@ export function LineCanvas({
         });
       }
     }
-    
+
     resetDragState();
   };
 
@@ -155,13 +155,17 @@ export function LineCanvas({
     if (isLineMode || !onUpdateLine) return;
     e.stopPropagation();
     e.preventDefault();
-    
+
     if (cleanupRef.current) {
       cleanupRef.current();
     }
-    
+
+    // Capture pointer to prevent escape during drag
+    const target = e.currentTarget as Element;
+    target.setPointerCapture(e.pointerId);
+
     setDragMode(endpoint);
-    
+
     const handleMove = (moveEvent: PointerEvent) => {
       if (!svgRef.current) return;
       const canvas = svgRef.current.closest('[data-testid="board-canvas"]') as HTMLElement;
@@ -173,22 +177,25 @@ export function LineCanvas({
         x: (screenX - pan.x) / zoom,
         y: (screenY - pan.y) / zoom
       };
-      
+
       if (endpoint === 'endpoint1') {
         onUpdateLine(line.id, { x1: Math.round(newPos.x), y1: Math.round(newPos.y) });
       } else {
         onUpdateLine(line.id, { x2: Math.round(newPos.x), y2: Math.round(newPos.y) });
       }
     };
-    
+
     const cleanup = () => {
       setDragMode('none');
+      if (target.hasPointerCapture(e.pointerId)) {
+        target.releasePointerCapture(e.pointerId);
+      }
       document.removeEventListener('pointermove', handleMove);
       document.removeEventListener('pointerup', cleanup);
       document.removeEventListener('pointercancel', cleanup);
       cleanupRef.current = null;
     };
-    
+
     cleanupRef.current = cleanup;
     document.addEventListener('pointermove', handleMove);
     document.addEventListener('pointerup', cleanup);
@@ -199,15 +206,19 @@ export function LineCanvas({
     if (isLineMode || selectedLineId !== line.id || !onUpdateLine) return;
     e.stopPropagation();
     e.preventDefault();
-    
+
     if (cleanupRef.current) {
       cleanupRef.current();
     }
-    
+
+    // Capture pointer to prevent escape during drag
+    const target = e.currentTarget as Element;
+    target.setPointerCapture(e.pointerId);
+
     setDragMode('move');
     const startPos = getCoordinates(e);
     const originalLine = { ...line };
-    
+
     const handleMove = (moveEvent: PointerEvent) => {
       if (!svgRef.current) return;
       const canvas = svgRef.current.closest('[data-testid="board-canvas"]') as HTMLElement;
@@ -221,7 +232,7 @@ export function LineCanvas({
       };
       const dx = currentPos.x - startPos.x;
       const dy = currentPos.y - startPos.y;
-      
+
       onUpdateLine(line.id, {
         x1: Math.round(originalLine.x1 + dx),
         y1: Math.round(originalLine.y1 + dy),
@@ -229,15 +240,18 @@ export function LineCanvas({
         y2: Math.round(originalLine.y2 + dy)
       });
     };
-    
+
     const cleanup = () => {
       setDragMode('none');
+      if (target.hasPointerCapture(e.pointerId)) {
+        target.releasePointerCapture(e.pointerId);
+      }
       document.removeEventListener('pointermove', handleMove);
       document.removeEventListener('pointerup', cleanup);
       document.removeEventListener('pointercancel', cleanup);
       cleanupRef.current = null;
     };
-    
+
     cleanupRef.current = cleanup;
     document.addEventListener('pointermove', handleMove);
     document.addEventListener('pointerup', cleanup);
@@ -261,7 +275,7 @@ export function LineCanvas({
         const isSelected = selectedLineId === line.id;
         const midX = (line.x1 + line.x2) / 2;
         const midY = (line.y1 + line.y2) / 2;
-        
+
         return (
           <g key={line.id}>
             {/* Hit area for selection - larger for easier clicking */}
@@ -291,7 +305,7 @@ export function LineCanvas({
               )}
               onClick={(e) => handleLineClick(e, line.id)}
             />
-            
+
             {/* Selection UI - drag handles and move handle */}
             {isSelected && !isLineMode && (
               <>
@@ -313,7 +327,7 @@ export function LineCanvas({
                   fill="#3b82f6"
                   className="pointer-events-none"
                 />
-                
+
                 {/* Endpoint 1 - resize handle */}
                 <circle
                   cx={line.x1}
@@ -325,7 +339,7 @@ export function LineCanvas({
                   className="pointer-events-auto cursor-crosshair hover:scale-125 transition-transform origin-center"
                   onPointerDown={(e) => handleEndpointDragStart(e, line, 'endpoint1')}
                 />
-                
+
                 {/* Endpoint 2 - resize handle */}
                 <circle
                   cx={line.x2}
