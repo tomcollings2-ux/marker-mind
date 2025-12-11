@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { X, GripHorizontal, RotateCw, Type, Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { MIN_NOTE_SIZE } from '@/constants';
 
 type NoteColor = 'yellow' | 'pink' | 'blue' | 'green' | 'orange';
 
@@ -133,8 +134,8 @@ export function StickyNote({ note, onUpdate, onDelete, isSelected, onSelect, zoo
     const handleResizeMove = (moveEvent: PointerEvent) => {
       const dx = (moveEvent.clientX - startX) / zoom;
       const dy = (moveEvent.clientY - startY) / zoom;
-      const newWidth = Math.max(60, startWidth + dx);
-      const newHeight = Math.max(60, startHeight + dy);
+      const newWidth = Math.max(MIN_NOTE_SIZE, startWidth + dx);
+      const newHeight = Math.max(MIN_NOTE_SIZE, startHeight + dy);
 
       if (noteRef.current) {
         noteRef.current.style.width = `${newWidth}px`;
@@ -146,8 +147,8 @@ export function StickyNote({ note, onUpdate, onDelete, isSelected, onSelect, zoo
       setIsResizing(false);
       const dx = (upEvent.clientX - startX) / zoom;
       const dy = (upEvent.clientY - startY) / zoom;
-      const newWidth = Math.max(60, startWidth + dx);
-      const newHeight = Math.max(60, startHeight + dy);
+      const newWidth = Math.max(MIN_NOTE_SIZE, startWidth + dx);
+      const newHeight = Math.max(MIN_NOTE_SIZE, startHeight + dy);
       onUpdate(note.id, { width: Math.round(newWidth), height: Math.round(newHeight) });
       document.removeEventListener('pointermove', handleResizeMove);
       document.removeEventListener('pointerup', handleResizeEnd);
@@ -227,8 +228,8 @@ export function StickyNote({ note, onUpdate, onDelete, isSelected, onSelect, zoo
         fontFamily: fontFamilyMap[note.fontFamily || 'marker'] || 'var(--font-marker)',
         width: noteWidth,
         height: noteHeight,
-        minWidth: 60,
-        minHeight: 60,
+        minWidth: MIN_NOTE_SIZE,
+        minHeight: MIN_NOTE_SIZE,
         ...(isCustomColor(note.color) && { backgroundColor: note.color }),
       }}
       data-testid={`sticky-note-${note.id}`}

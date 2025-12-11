@@ -43,7 +43,7 @@ export async function saveBoard(id: string, content: any): Promise<void> {
 
   if (!res.ok) {
     const errorText = await res.text();
-    console.error(`Save failed with status ${res.status}: ${errorText}`);
-    throw new Error(`Failed to save board: ${res.status} ${res.statusText}`);
+    // Error will be handled by calling code with toast notification
+    throw new Error(`Save failed with status ${res.status}: ${errorText}`);
   }
 }

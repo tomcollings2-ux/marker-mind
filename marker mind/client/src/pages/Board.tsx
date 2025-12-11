@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useHistory } from '@/hooks/useHistory';
 import type { StickyNote as StickyNoteType, TextLabel as TextLabelType, Line as LineType, BoardImage as BoardImageType } from '@shared/schema';
-import type { Line } from '@shared/schema';
 import * as api from '@/lib/api';
 import { StickyNote } from '@/components/StickyNote';
 import { DrawingCanvas } from '@/components/DrawingCanvas';
@@ -36,6 +35,7 @@ import {
 import { Home, LogOut, User, Settings } from 'lucide-react';
 import textureImage from '@assets/generated_images/subtle_whiteboard_texture.png';
 import { useRoute, useLocation } from 'wouter';
+import { MIN_NOTE_SIZE, DEFAULT_NOTE_WIDTH, DEFAULT_NOTE_HEIGHT, MIN_ZOOM, MAX_ZOOM, MAX_HISTORY_SIZE, AUTO_FOCUS_DELAY_MS } from '@/constants';
 
 type NoteColor = 'yellow' | 'pink' | 'blue' | 'green' | 'orange';
 type Tool = 'cursor' | 'pen' | 'text' | 'line';
@@ -48,11 +48,6 @@ interface ToolSettings {
   textColor: string;
   textSize: number;
 }
-
-const DEFAULT_NOTE_WIDTH = 200;
-const DEFAULT_NOTE_HEIGHT = 200;
-const MIN_ZOOM = 0.25;
-const MAX_ZOOM = 3;
 
 
 type PresetType = 'kanban' | 'swot' | 'persona' | 'brainstorm' | 'pros_cons' | 'timeline' | 'rocket';
@@ -106,8 +101,12 @@ export default function Board() {
       api.createBoard('My Awesome Board').then(board => {
         setLocation(`/board/${board.id}`);
       }).catch(err => {
-        console.error('Failed to create board:', err);
-        toast({ title: 'Error', description: 'Failed to create board', variant: 'destructive' });
+        // Show toast notification instead
+        toast({
+          title: 'Error',
+          description: 'Failed to create board. Please try again.',
+          variant: 'destructive'
+        });
       });
     }
   }, [boardId, setLocation, toast]);
@@ -154,7 +153,7 @@ export default function Board() {
   }, [hasUnsavedChanges]);
 
   // History management for undo/redo
-  const history = useHistory(20);
+  const history = useHistory(MAX_HISTORY_SIZE);
 
   // Safe undo with error handling
   const safeUndo = useCallback(() => {
@@ -166,7 +165,7 @@ export default function Board() {
         toast({ title: "Undone", description: "Action reversed" });
       }
     } catch (error) {
-      console.error('Undo failed:', error);
+      // Silently fail - undo not critical to show error
       toast({
         title: "Undo Failed",
         description: "Could not undo action. State may be corrupted.",
@@ -185,7 +184,7 @@ export default function Board() {
         toast({ title: "Redone", description: "Action reapplied" });
       }
     } catch (error) {
-      console.error('Redo failed:', error);
+      // Silently fail - redo not critical to show error
       toast({
         title: "Redo Failed",
         description: "Could not redo action.",
@@ -324,7 +323,7 @@ export default function Board() {
         next.delete(newNote.id);
         return next;
       });
-    }, 100);
+    }, AUTO_FOCUS_DELAY_MS);
   };
 
   // Drawing Handlers
@@ -479,7 +478,6 @@ export default function Board() {
       toast({ title: "Board Saved", description: "Your changes have been saved to the server." });
     },
     onError: (error) => {
-      console.error("Failed to save board:", error);
       toast({
         title: "Save Failed",
         description: "Could not save changes to the server. Please try again.",
@@ -489,7 +487,6 @@ export default function Board() {
   });
 
   const handleSave = () => {
-    console.log("Saving board...");
     saveBoardMutation.mutate();
   };
 
