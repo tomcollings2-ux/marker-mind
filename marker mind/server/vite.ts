@@ -31,8 +31,14 @@ export async function setupVite(server: Server, app: Express) {
 
   app.use(vite.middlewares);
 
+  // Catch-all for client-side routing (but NOT for /api routes)
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
+
+    // Skip this handler for API routes - they should have been handled earlier
+    if (url.startsWith('/api/')) {
+      return next();
+    }
 
     try {
       const clientTemplate = path.resolve(
